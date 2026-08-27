@@ -3,3 +3,21 @@ bin/
 obj/
 *.user
 *.suo
+
+# Local Python artifacts
+__pycache__/
+*.py[cod]
+
+# CircuitPython credentials and local environment files
+secrets.py
+settings.toml
+.env
+.env.*
+*.pem
+*.key
+
+# Files created by macOS on CIRCUITPY volumes
+.Trashes/
+.fseventsd/
+.metadata_never_index
+.DS_Store
