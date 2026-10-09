@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 import weather_config as config
 from tools.display_stubs import FakeDisplay, Group, Label, TileGrid, install
-from tools.preview_display import render_screen, visible_items
+from tools.preview_display import desktop_font, render_screen, visible_items
 from weather_core import DataHistory, pm_category
 
 
@@ -243,10 +243,8 @@ def test_alert_clearing_restores_page_title_and_normal_palette(view):
 
 
 def test_banner_renderer_uses_black_palette_and_white_letters(view):
-    from PIL import ImageFont
-
     details(view, alerts="Alert: PM high")
-    image = render_screen(view, ImageFont.truetype("C:/Windows/Fonts/cour.ttf", 10))
+    image = render_screen(view, desktop_font())
     assert image.getpixel((0, 0)) == (0, 0, 0)
     assert image.getpixel((0, 16)) == (255, 255, 255)
     assert any(
