@@ -1,23 +1,30 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
 .vs/
 bin/
 obj/
 *.user
 *.suo
-
-# Local Python artifacts
-__pycache__/
-*.py[cod]
-
-# CircuitPython credentials and local environment files
 secrets.py
+secrets.json
 settings.toml
 .env
 .env.*
 *.pem
 *.key
-
-# Files created by macOS on CIRCUITPY volumes
+lib/
+device-backups/
+*backup*.zip
+*.bundle
+weather-state/
+boot_out.txt
+wipper_boot_out.txt
+hardware*smoke-test.txt
+deployment-verification.json
+.DS_Store
 .Trashes/
 .fseventsd/
 .metadata_never_index
-.DS_Store

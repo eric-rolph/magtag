@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py37"
+line-length = 100
+exclude = ["lib", "fonts", "bmps"]
+
+[tool.ruff.lint]
+select = ["E", "F"]

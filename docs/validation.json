@@ -1,0 +1,52 @@
+{
+  "version": "4.0",
+  "date": "2026-10-09",
+  "desktop_tests_passed": 374,
+  "ruff": "passed",
+  "device_source_python_37_syntax": "passed",
+  "firmware": "CircuitPython 7.1.1",
+  "board": "adafruit_magtag_2.9_grayscale",
+  "sensors": {
+    "PM2.5": "ready",
+    "BME280": "ready"
+  },
+  "device_calculation_checks": {
+    "max_history_payload_bytes": 5768,
+    "passed": 63,
+    "failed": 0,
+    "failures": []
+  },
+  "full_week_cooperative_storage": {
+    "queued": true,
+    "saved": true,
+    "max_service_seconds": 0.731995,
+    "max_service_phase": "prefix",
+    "restored_samples": 10080,
+    "live_last_pm": 99.0,
+    "service_calls": 324,
+    "payload_bytes": 80640,
+    "queue_seconds": 0.0750122,
+    "save_seconds": 49.546,
+    "actions_during_save": 41,
+    "watchdog_during_test": "armed 30s",
+    "status": "previous session archived; not live data",
+    "phase_max_seconds": {
+      "verify-footer": 0.0010376,
+      "footer": 0.000976563,
+      "sync": 0.0010376,
+      "close": 0.112,
+      "payload": 0.380005,
+      "prefix": 0.731995,
+      "verify-payload": 0.153015,
+      "verify-prefix": 0.0109863
+    },
+    "restored_last_pm": 12.0,
+    "load_seconds": 19.2349
+  },
+  "display_preview": {
+    "states": 12,
+    "source": "actual production display tree",
+    "data": "synthetic",
+    "font": "desktop approximation"
+  }
+}
