@@ -1,10 +1,55 @@
-from types import SimpleNamespace
+import builtins
+import sys
+from types import ModuleType, SimpleNamespace
 
 import weather_station
 import weather_config as config
 from weather_alerts import AlertManager
 from weather_core import DataHistory, SamplingSchedule, ZambrettiForecaster
 from weather_ui import UIController
+
+
+def test_startup_without_credentials_or_networking(monkeypatch):
+    settings = SimpleNamespace(**{
+        name: getattr(config, name) for name in dir(config) if name.isupper()
+    })
+    settings.PERSISTENCE_ENABLED = False
+    settings.WATCHDOG_ENABLED = False
+    display = object()
+    peripherals = SimpleNamespace(battery=4.0)
+    rendered_on = []
+    package = ModuleType("adafruit_magtag")
+    package.__path__ = []
+    monkeypatch.setitem(sys.modules, "adafruit_magtag", package)
+    monkeypatch.setitem(sys.modules, "adafruit_magtag.peripherals", SimpleNamespace(
+        Peripherals=lambda: peripherals,
+    ))
+    monkeypatch.setitem(sys.modules, "board", SimpleNamespace(
+        DISPLAY=display, SCL=object(), SDA=object(),
+    ))
+    monkeypatch.setitem(sys.modules, "busio", SimpleNamespace(I2C=lambda *a, **k: object()))
+    monkeypatch.setitem(sys.modules, "weather_display", SimpleNamespace(
+        Display=lambda target, _: rendered_on.append(target) or object(),
+    ))
+    monkeypatch.setattr(weather_station, "SensorData", lambda *a: object())
+    monkeypatch.setattr(weather_station, "LEDManager", lambda *a: object())
+    monkeypatch.setattr(weather_station, "editing_mode", lambda: False)
+    monkeypatch.setattr(weather_station, "trusted_epoch", lambda: None)
+    monkeypatch.setattr(weather_station, "reset_reason", lambda: "POWER_ON")
+    original_import = builtins.__import__
+
+    def offline_import(name, *args, **kwargs):
+        assert name not in (
+            "secrets", "wifi", "adafruit_magtag.magtag", "adafruit_magtag.network",
+            "adafruit_portalbase.network",
+        ), "Offline startup imported " + name
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", offline_import)
+    station = weather_station.WeatherStation(settings)
+    assert station.peripherals is peripherals
+    assert rendered_on == [display]
+    assert not station.watchdog.enabled
 
 
 def test_station_delay_produces_one_real_read_and_visible_missing_slots(monkeypatch):
@@ -29,7 +74,7 @@ def test_station_delay_produces_one_real_read_and_visible_missing_slots(monkeypa
     station.forecaster = ZambrettiForecaster()
     station.schedule = SamplingSchedule(0)
     station.reading_count = 0
-    station.magtag = SimpleNamespace(peripherals=SimpleNamespace(battery=4.0))
+    station.peripherals = SimpleNamespace(battery=4.0)
     station.display = SimpleNamespace(update_sensors=lambda *_: None)
     station.leds = SimpleNamespace(set_color=lambda *_: None)
     assert station.update_readings(0)
@@ -46,13 +91,11 @@ def test_held_button_does_not_block_or_repeat():
     station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
     station.controls = UIController()
     calls = []
-    station.magtag = SimpleNamespace(
-        peripherals=SimpleNamespace(
-            button_a_pressed=True,
-            button_b_pressed=False,
-            button_c_pressed=False,
-            button_d_pressed=False,
-        )
+    station.peripherals = SimpleNamespace(
+        button_a_pressed=True,
+        button_b_pressed=False,
+        button_c_pressed=False,
+        button_d_pressed=False,
     )
     station.display = SimpleNamespace(
         next_graph_type=lambda: calls.append("next"),
@@ -78,7 +121,7 @@ def test_c_short_release_changes_brightness_and_long_hold_changes_units_once():
         button_c_pressed=False,
         button_d_pressed=False,
     )
-    station.magtag = SimpleNamespace(peripherals=peripherals)
+    station.peripherals = peripherals
     feedback = []
     station.display = SimpleNamespace(
         toggle_temperature_unit=lambda: calls.append("unit"),

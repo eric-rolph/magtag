@@ -30,20 +30,22 @@ class WeatherStation:
             raise ValueError("\n".join(errors))
         import board
         import busio
-        from adafruit_magtag.magtag import MagTag
+        from adafruit_magtag.peripherals import Peripherals
         from weather_display import Display
 
         self.config = settings
         self.started_at = time.monotonic()
         self.editing = editing_mode()
-        self.magtag = MagTag()
+        # The legacy MagTag wrapper constructs networking and requires secrets.py.
+        # This station only needs the board's display and local peripherals.
+        self.peripherals = Peripherals()
         self.i2c = busio.I2C(board.SCL, board.SDA, frequency=100_000)
         self.sensors = SensorData(self.i2c, settings)
         self.forecaster = ZambrettiForecaster()
         self.controls = UIController(debounce_seconds=settings.BUTTON_DEBOUNCE_SECONDS)
-        self.display = Display(self.magtag.graphics.display, settings)
+        self.display = Display(board.DISPLAY, settings)
         self.leds = LEDManager(
-            self.magtag.peripherals, settings.LED_BRIGHTNESS_LEVELS, settings.LED_BRIGHTNESS_INDEX
+            self.peripherals, settings.LED_BRIGHTNESS_LEVELS, settings.LED_BRIGHTNESS_INDEX
         )
         self.history = DataHistory(settings.HISTORY_SAMPLES, settings.READING_INTERVAL_SECONDS)
         self.store = CheckpointStore(
@@ -84,7 +86,7 @@ class WeatherStation:
         )
         self.store.progress_callback = self.watchdog.feed
         print(
-            "MagTag weather station v4.0; standalone; history payload:",
+            "MagTag weather station v4.0.1; standalone; history payload:",
             self.history.storage_bytes,
             "bytes; watchdog",
             self.watchdog.status,
@@ -120,11 +122,11 @@ class WeatherStation:
 
     def _update_sensor_labels(self):
         self.display.update_sensors(
-            self.sensors, self.trend, self.forecast, self.magtag.peripherals.battery
+            self.sensors, self.trend, self.forecast, self.peripherals.battery
         )
 
     def check_buttons(self, now):
-        peripherals = self.magtag.peripherals
+        peripherals = self.peripherals
         pressed = (
             peripherals.button_a_pressed,
             peripherals.button_b_pressed,

@@ -1,10 +1,26 @@
 # Validation
 
-Tested on October 9, 2026 with an Adafruit MagTag running CircuitPython 7.1.1.
+Baseline hardware measurements: October 9, 2026, Adafruit MagTag with
+CircuitPython 7.1.1. Desktop validation was repeated for 4.0.1 on October 19.
+
+## Clean installation recovery — October 19
+
+The connected board contained only `print("Hello World!")` and an empty library
+folder. After backing it up, the 14 application files and 73 compatible library
+files were restored and hash-verified. Startup then reproduced a legacy network
+wrapper crash when `secrets.py` was absent. Version 4.0.1 bypasses that wrapper
+and initializes the local peripherals and built-in display directly.
+
+The repaired board booted with no credential files present, both sensors ready,
+and a 30-second watchdog armed. Startup and a subsequent scheduled reading were
+observed after a hardware reset. The new regression test rejects network and
+credential imports during station construction.
+
+## Baseline checks
 
 | Check | Result |
 | --- | --- |
-| Desktop tests | 374 passed |
+| Desktop tests | 375 passed, including credential-free offline startup |
 | Ruff and Python 3.7 device-source syntax | Passed |
 | On-board calculation checks | 63 passed, zero failed |
 | Installed application files | All 14 matched local SHA-256 hashes |

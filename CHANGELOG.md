@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.0.1 — 2026-10-19
+
+- Start directly from local MagTag peripherals and the built-in display. Avoid
+  the legacy network wrapper, which crashes without `secrets.py` on a clean board.
+- Add a startup regression check that rejects Wi-Fi and credential imports.
+
 ## 4.0 — 2026-10-09
 
 - Add the home dashboard, larger graphs, page hints, and hold-D Home shortcut.

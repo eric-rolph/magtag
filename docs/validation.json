@@ -1,7 +1,7 @@
 {
-  "version": "4.0",
-  "date": "2026-10-09",
-  "desktop_tests_passed": 374,
+  "version": "4.0.1",
+  "date": "2026-10-19",
+  "desktop_tests_passed": 375,
   "ruff": "passed",
   "device_source_python_37_syntax": "passed",
   "firmware": "CircuitPython 7.1.1",
@@ -48,5 +48,16 @@
     "source": "actual production display tree",
     "data": "synthetic",
     "font": "desktop approximation"
+  },
+  "baseline_hardware_measurement_date": "2026-10-09",
+  "clean_install_recovery": {
+    "date": "2026-10-19",
+    "credential_files_absent": true,
+    "network_initialization_skipped": true,
+    "both_sensors_ready": true,
+    "watchdog": "armed 30s",
+    "startup_and_next_sample_observed": true,
+    "application_files_verified": 14,
+    "library_files_verified": 73
   }
 }

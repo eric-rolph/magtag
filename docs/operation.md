@@ -9,6 +9,10 @@ Sampling runs continuously; deep sleep is not enabled and battery runtime is
 unmeasured. Board tests used USB power; unplugged operation and sensor power
 wiring still need a physical check.
 
+Version 4.0.1 initializes the local peripherals and built-in display directly.
+It does not construct the legacy MagTag network wrapper or require `secrets.py`,
+`settings.toml`, or Wi-Fi credentials.
+
 Hold D during reset to give the computer write ownership. Storage and the
 watchdog pause for that editing session. Reset with D released to resume device
 logging. Holding D while the app runs returns Home instead.

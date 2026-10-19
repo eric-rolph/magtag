@@ -57,7 +57,7 @@ read-only drive. Hold D during reset to edit over USB. LEDs default off.
 
 ## Validation and development
 
-**374 desktop tests and 63 on-board calculation checks passed.** A 21-day software
+**375 desktop tests and 63 on-board calculation checks passed.** A 21-day software
 replay checks outages, buffer wrap, alerts, and restart recovery. An on-board test
 saved and restored all 10,080 samples; the longest save step measured 0.732 seconds.
 See [validation notes](docs/validation.md) for scope and limits.
