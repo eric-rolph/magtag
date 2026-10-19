@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.0.2 — 2026-10-19
+
+- Fix a crash when tapping D: replace `str.capitalize()`, unavailable on
+  CircuitPython 7.1.1, with explicit page labels.
+- Add a regression test cycling all pages without that string method.
+
 ## 4.0.1 — 2026-10-19
 
 - Start directly from local MagTag peripherals and the built-in display. Avoid

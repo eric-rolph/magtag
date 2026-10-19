@@ -1,7 +1,7 @@
 # Validation
 
 Baseline hardware measurements: October 9, 2026, Adafruit MagTag with
-CircuitPython 7.1.1. Desktop validation was repeated for 4.0.1 on October 19.
+CircuitPython 7.1.1. Desktop validation was repeated for 4.0.2 on October 19.
 
 ## Clean installation recovery — October 19
 
@@ -18,9 +18,15 @@ credential imports during station construction.
 
 ## Baseline checks
 
+The 4.0.2 D-button fix was also checked on CircuitPython 7.1.1 using 29 simulated
+input actions through the production handler: all pages, four metrics, six graph
+ranges, eight brightness settings, both temperature units, and hold-D Home.
+Preferences and the archived buffer were restored. These were on-board simulated
+inputs, not hand-operated button presses or per-page panel refresh checks.
+
 | Check | Result |
 | --- | --- |
-| Desktop tests | 375 passed, including credential-free offline startup |
+| Desktop tests | 376 passed, including offline startup and D-button compatibility |
 | Ruff and Python 3.7 device-source syntax | Passed |
 | On-board calculation checks | 63 passed, zero failed |
 | Installed application files | All 14 matched local SHA-256 hashes |

@@ -24,6 +24,14 @@ from weather_ui import UIController, status_messages
 
 
 class WeatherStation:
+    PAGE_NAMES = {
+        "home": "Home",
+        "weather": "Graphs",
+        "details": "Measurements",
+        "diagnostics": "Diagnostics",
+        "archive": "Previous session",
+    }
+
     def __init__(self, settings=config):
         errors = validate_config(settings)
         if errors:
@@ -86,7 +94,7 @@ class WeatherStation:
         )
         self.store.progress_callback = self.watchdog.feed
         print(
-            "MagTag weather station v4.0.1; standalone; history payload:",
+            "MagTag weather station v4.0.2; standalone; history payload:",
             self.history.storage_bytes,
             "bytes; watchdog",
             self.watchdog.status,
@@ -143,7 +151,7 @@ class WeatherStation:
                 message = "Graph range: {:g}h".format(hours)
             elif action == "page":
                 self.display.next_screen(self.archive is not None)
-                message = self.display.screen.capitalize()
+                message = self.PAGE_NAMES[self.display.screen]
             elif action == "home":
                 self.display.home()
                 message = "Home dashboard"

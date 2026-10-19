@@ -111,6 +111,47 @@ def test_held_button_does_not_block_or_repeat():
     assert calls == ["next"]
 
 
+def test_short_d_cycles_all_pages_without_cpython_string_helpers():
+    class CircuitPythonString(str):
+        @property
+        def capitalize(self):
+            raise AttributeError("CircuitPython 7 does not implement str.capitalize")
+
+    station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.controls = UIController()
+    station.archive = object()
+    buttons = SimpleNamespace(
+        button_a_pressed=False, button_b_pressed=False,
+        button_c_pressed=False, button_d_pressed=False,
+    )
+    station.peripherals = buttons
+    screens = ("home", "weather", "details", "diagnostics", "archive")
+    feedback = []
+
+    def next_screen(has_archive):
+        assert has_archive
+        index = (screens.index(station.display.screen) + 1) % len(screens)
+        station.display.screen = CircuitPythonString(screens[index])
+
+    station.display = SimpleNamespace(
+        screen=CircuitPythonString("home"), next_screen=next_screen,
+        acknowledge=lambda message, _: feedback.append(message),
+    )
+    station._update_sensor_labels = lambda: None
+    station._update_details = lambda *_: None
+    for index in range(5):
+        now = index * 2
+        buttons.button_d_pressed = True
+        station.check_buttons(now)
+        station.check_buttons(now + 0.1)
+        buttons.button_d_pressed = False
+        station.check_buttons(now + 0.3)
+        station.check_buttons(now + 0.4)
+        station.controls.rendered()
+    assert station.display.screen == "home"
+    assert feedback == ["Graphs", "Measurements", "Diagnostics", "Previous session", "Home"]
+
+
 def test_c_short_release_changes_brightness_and_long_hold_changes_units_once():
     station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
     station.controls = UIController()
