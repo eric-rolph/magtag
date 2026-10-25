@@ -20,6 +20,8 @@ display. Runs without a computer, Wi-Fi, or cloud account when powered separatel
   and a high-contrast alert banner visible with LEDs off.
 - **Sensor recovery:** independent retries, diagnostics, a watchdog, and
   background save steps that keep servicing controls.
+- **Crash recovery:** guarded startup/runtime, a bounded last-crash report, and
+  recovery from a persistently busy or failing display.
 
 [View the twelve-screen UI preview](display-preview.png).
 It uses synthetic readings and a desktop font approximation.
@@ -57,7 +59,8 @@ read-only drive. Hold D during reset to edit over USB. LEDs default off.
 
 ## Validation and development
 
-**376 desktop tests and 63 on-board calculation checks passed.** A 21-day software
+**398 desktop tests passed for v4.0.3.** Previous hardware validation included
+63 on-board calculation checks. A 21-day software
 replay checks outages, buffer wrap, alerts, and restart recovery. An on-board test
 saved and restored all 10,080 samples; the longest save step measured 0.732 seconds.
 See [validation notes](docs/validation.md) for scope and limits.

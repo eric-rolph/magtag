@@ -17,6 +17,14 @@ Hold D during reset to give the computer write ownership. Storage and the
 watchdog pause for that editing session. Reset with D released to resume device
 logging. Holding D while the app runs returns Home instead.
 
+In normal mode, an unexpected startup or runtime exception records up to 2 KiB
+in `/last-crash.txt`, then restarts after five seconds. Identical reports do not
+rewrite flash. Full or read-only storage does not prevent restarting. Ctrl-C
+and editing-mode errors retain REPL access. A display stuck busy, or repeatedly
+failing refreshes, requests recovery after 60 seconds; normal panel cooldown
+does not count as a fault. Recovery cannot repair missing application files,
+failed flash storage, or a hardware fault that persists after reset.
+
 ## Settings
 
 Edit `weather_config.py` in editing mode. Check `ELEVATION_M`: the supplied
@@ -72,7 +80,10 @@ python tools/device_files.py deploy --drive I:/ --backup-dir ../device-backups -
 ```
 
 The helper makes a verified backup, enters exclusive editing mode, copies all
-14 application files with `code.py` last, verifies hashes, and restarts logging.
+14 application files with `code.py` last, flushes each file, verifies SHA-256
+on the host and CRC32 through the MCU, and restarts logging. Failed flushes or
+MCU readback stop the upload before the final reset. Without `--port`, use the
+operating system's safe-eject action before manually resetting or unplugging.
 Install matching libraries separately for a new board.
 
 To restore a backup:

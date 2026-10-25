@@ -139,6 +139,44 @@ def test_failed_refresh_retries_with_backoff(view):
     assert view.refresh(1)
 
 
+def test_permanently_busy_display_requests_recovery_instead_of_feeding_watchdog_forever(view):
+    view.display.busy = True
+    assert not view.refresh(0)
+    assert not view.refresh(59)
+    with pytest.raises(RuntimeError, match="remained busy"):
+        view.refresh(60)
+
+
+def test_display_cooldown_and_recovered_busy_period_do_not_trigger_fault(view):
+    view.display.time_to_refresh = 180
+    assert not view.refresh(0)
+    assert not view.refresh(179)
+    view.display.time_to_refresh = 0
+    view.display.busy = True
+    assert not view.refresh(180)
+    view.display.busy = False
+    assert view.refresh(181)
+    view.refresh_needed = True
+    view.display.busy = True
+    assert not view.refresh(240)
+    view.display.busy = False
+    assert view.refresh(241)
+
+
+def test_repeated_refresh_errors_request_recovery_and_success_resets_timer(view):
+    view.display.fail_refresh = True
+    assert not view.refresh(0)
+    assert not view.refresh(59)
+    with pytest.raises(RuntimeError, match="refresh failed"):
+        view.refresh(60)
+    view.display.fail_refresh = False
+    assert view.refresh(61)
+    view.refresh_needed = True
+    view.display.fail_refresh = True
+    assert not view.refresh(120)
+    assert not view.refresh(179)
+
+
 def test_busy_display_preserves_feedback_until_render_then_full_duration(view):
     view.acknowledge("LEDs: 25%", 0, duration_seconds=12)
     view.display.time_to_refresh = 15

@@ -1,7 +1,36 @@
 # Validation
 
 Baseline hardware measurements: October 9, 2026, Adafruit MagTag with
-CircuitPython 7.1.1. Desktop validation was repeated for 4.0.2 on October 19.
+CircuitPython 7.1.1. Desktop validation was repeated for 4.0.3 on October 24.
+
+## Crash recovery audit — October 24
+
+The connected drive again contained only the factory Hello World program and
+an empty library folder. Its NVM retained the station's marker, and both sensor
+addresses responded. No previous application traceback remained. The cause of
+the missing files could not be established from this state; filesystem damage
+or an earlier reset/reformat must not be presented as a confirmed diagnosis.
+
+Version 4.0.3 addresses gaps found during the audit: application imports and
+unexpected runtime errors now preserve a bounded report and restart; hardware
+initialization is covered by the watchdog; stuck display states request recovery;
+sensor arithmetic faults are isolated; and uploads flush files and verify MCU
+readback before resetting. Host SHA-256 verification alone can read cached data.
+
+Desktop validation passes 398 tests, Ruff, and Python 3.7 source syntax checks.
+The 21-day accelerated replay passes all invariants. The board passes 29 simulated
+control actions and the display timeout/traceback capture checks. An intentionally
+raised exception was saved to `/last-crash.txt` and followed by automatic restart.
+A deliberately stalled startup also triggered the watchdog and restarted
+successfully. The final normal run produced two scheduled readings, saved a
+CRC-valid checkpoint, and retained all 14 modules across resets. The intentional
+test crash report was removed. Raw transcripts and the pre-repair drive backup
+remain local.
+
+The original disappearance of the application remains unexplained. This audit
+does not establish long-term hardware endurance, power-loss tolerance, or flash
+health. CircuitPython documents Windows safe-eject precautions in its
+[filesystem troubleshooting guide](https://docs.circuitpython.org/en/latest/docs/troubleshooting.html).
 
 ## Clean installation recovery — October 19
 

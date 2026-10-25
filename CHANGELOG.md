@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.0.3 — 2026-10-24
+
+- Guard application imports and runtime failures: preserve a bounded last-crash
+  report and restart in normal logging mode. Editing errors and Ctrl-C retain REPL access.
+- Arm the watchdog before hardware initialization and service it during history
+  restoration, so a startup stall is also covered.
+- Recover if the display remains busy or repeatedly rejects refreshes for 60 seconds,
+  instead of feeding the watchdog forever with a frozen screen.
+- Treat sensor arithmetic/calibration errors as recoverable per-sensor failures.
+- Flush each uploaded file before hash verification, then verify CRC32 through
+  the MCU before resetting. A flush/readback failure leaves the device paused.
+- Add fault tests for startup, runtime, logging failures, stuck displays, and sensor errors.
+
 ## 4.0.2 — 2026-10-19
 
 - Fix a crash when tapping D: replace `str.capitalize()`, unavailable on

@@ -24,6 +24,8 @@ class Display:
         self.temperature_unit = config.TEMPERATURE_UNIT
         self._retry_at = 0.0
         self._refresh_error = False
+        self._blocked_since = None
+        self._failed_since = None
         self._now = self._uptime = 0
         self._health = ({}, {})
         self._has_archive = False
@@ -462,17 +464,29 @@ class Display:
             self.refresh_needed = True
         if not self.refresh_needed or now < self._retry_at:
             return False
-        if getattr(self.display, "busy", False) or getattr(self.display, "time_to_refresh", 0) > 0:
+        if getattr(self.display, "busy", False):
+            if self._blocked_since is None:
+                self._blocked_since = now
+            if now - self._blocked_since >= 60:
+                raise RuntimeError("Display remained busy for 60 seconds")
+            return False
+        self._blocked_since = None
+        if getattr(self.display, "time_to_refresh", 0) > 0:
             return False
         try:
             self.display.refresh()
         except RuntimeError as error:
+            if self._failed_since is None:
+                self._failed_since = now
+            if now - self._failed_since >= 60:
+                raise RuntimeError("Display refresh failed for 60 seconds: " + str(error))
             if not self._refresh_error:
                 print("Display refresh deferred:", error)
             self._refresh_error = True
             self._retry_at = now + 1
             return False
         self._refresh_error = False
+        self._failed_since = None
         self.refresh_needed = False
         if self._ack_text is not None and self._ack_rendered_at is None:
             self._ack_rendered_at = now

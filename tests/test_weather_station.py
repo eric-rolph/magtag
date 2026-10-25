@@ -52,6 +52,34 @@ def test_startup_without_credentials_or_networking(monkeypatch):
     assert not station.watchdog.enabled
 
 
+def test_watchdog_is_armed_before_hardware_initialization_can_stall(monkeypatch):
+    import pytest
+
+    calls = []
+    guard = SimpleNamespace(status="armed 30s", feed=lambda: calls.append("feed"))
+    monkeypatch.setattr(weather_station, "WatchdogGuard", lambda *args: calls.append("armed")
+                        or guard)
+    monkeypatch.setattr(weather_station, "editing_mode", lambda: False)
+    monkeypatch.setitem(sys.modules, "board", SimpleNamespace(SCL=1, SDA=2))
+    package = ModuleType("adafruit_magtag")
+    package.__path__ = []
+    monkeypatch.setitem(sys.modules, "adafruit_magtag", package)
+    monkeypatch.setitem(sys.modules, "adafruit_magtag.peripherals", SimpleNamespace(
+        Peripherals=lambda: calls.append("peripherals") or object(),
+    ))
+    monkeypatch.setitem(sys.modules, "weather_display", SimpleNamespace(Display=object))
+
+    def failing_bus(*args, **kwargs):
+        calls.append("bus")
+        raise OSError("bus failed during startup")
+
+    monkeypatch.setitem(sys.modules, "busio", SimpleNamespace(I2C=failing_bus))
+    with pytest.raises(OSError, match="bus failed"):
+        weather_station.WeatherStation()
+    assert calls[0] == "armed"
+    assert calls.index("armed") < calls.index("peripherals") < calls.index("bus")
+
+
 def test_station_delay_produces_one_real_read_and_visible_missing_slots(monkeypatch):
     clock = [0.0]
     monkeypatch.setattr(weather_station.time, "monotonic", lambda: clock[0])

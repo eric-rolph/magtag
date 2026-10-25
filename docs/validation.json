@@ -1,7 +1,7 @@
 {
-  "version": "4.0.2",
-  "date": "2026-10-19",
-  "desktop_tests_passed": 376,
+  "version": "4.0.3",
+  "date": "2026-10-24",
+  "desktop_tests_passed": 398,
   "ruff": "passed",
   "device_source_python_37_syntax": "passed",
   "firmware": "CircuitPython 7.1.1",
@@ -14,7 +14,8 @@
     "max_history_payload_bytes": 5768,
     "passed": 63,
     "failed": 0,
-    "failures": []
+    "failures": [],
+    "measurement_date": "2026-10-09"
   },
   "full_week_cooperative_storage": {
     "queued": true,
@@ -41,7 +42,8 @@
       "verify-prefix": 0.0109863
     },
     "restored_last_pm": 12.0,
-    "load_seconds": 19.2349
+    "load_seconds": 19.2349,
+    "measurement_date": "2026-10-09"
   },
   "display_preview": {
     "states": 12,
@@ -69,5 +71,28 @@
     "metric_range_led_unit_and_home_actions_passed": true,
     "preferences_restored": true,
     "normal_sampling_after_restart": true
+  },
+  "recovery_audit": {
+    "date": "2026-10-24",
+    "missing_application_cause": "undetermined",
+    "initial_files_verified_on_mcu": 87,
+    "final_updated_modules_verified_on_mcu": 2,
+    "final_full_deployment_modules_verified_on_mcu": 14,
+    "simulated_control_actions_on_board": 29,
+    "physical_button_presses": false,
+    "normal_boot": true,
+    "exception_recovery": {
+      "automatic_reset": true,
+      "crash_report_saved": true
+    },
+    "startup_stall_watchdog_recovery": {
+      "automatic_reset": true,
+      "reset_reason": "WATCHDOG"
+    },
+    "normal_scheduled_readings_observed": 2,
+    "all_14_modules_preserved_after_resets": true,
+    "checkpoint_crc_valid": true,
+    "accelerated_21_day_replay_invariants": true,
+    "physical_endurance_test": false
   }
 }
