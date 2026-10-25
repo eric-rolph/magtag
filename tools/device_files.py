@@ -16,9 +16,11 @@ import ast
 from datetime import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import time
+import zlib
 
 
 APP_FILES = (
@@ -36,6 +38,12 @@ APP_FILES = (
     "weather_station.py",
     "boot.py",
     "code.py",
+)
+
+FONT_FILES = (
+    "fonts/leaguespartan18.bdf",
+    "fonts/leaguespartan11.bdf",
+    "fonts/leaguespartan.license",
 )
 
 
@@ -268,9 +276,46 @@ def copy_verified(files, source_root, drive, remove_owned_boot=False):
         destination = safe_destination(drive, relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
+        # Hash reads can be satisfied by the Windows cache. Flush the actual
+        # file handle before verification or any reset can disconnect USB.
+        with destination.open("r+b") as stream:
+            os.fsync(stream.fileno())
         if digest(source) != digest(destination):
             raise RuntimeError("Device copy mismatch: " + str(relative))
     print("Verified", len(files), "files on", drive)
+
+
+def verify_on_device(port, files, source_root):
+    """Read CRC32 through the MCU, independently of the computer's USB cache.
+
+    CircuitPython 7 has no hashlib. Host SHA-256 checks are complemented by
+    the station's tested bounded-memory CRC32 implementation on the MCU.
+    """
+    execute_repl(
+        port, "from weather_persistence import _crc32\nprint('WEATHER_CRC_IMPORTS')\n",
+        "WEATHER_CRC_IMPORTS",
+    )
+    source = (
+        "def _weather_crc(p):\n"
+        " c=0\n"
+        " f=open(p,'rb')\n"
+        " b=f.read(512)\n"
+        " while b:\n"
+        "  c=_crc32(b,c)\n"
+        "  b=f.read(512)\n"
+        " f.close()\n"
+        " return c\n"
+    )
+    execute_repl(port, source + "print('WEATHER_CRC_READY')\n", "WEATHER_CRC_READY")
+    for path in files:
+        relative = path.relative_to(source_root).as_posix()
+        execute_repl(
+            port,
+            "print('WEATHER_CRC=' + str(_weather_crc(" + repr("/" + relative) + ")))\n",
+            "WEATHER_CRC=" + str(zlib.crc32(path.read_bytes()) & 0xFFFFFFFF),
+            seconds=max(0.8, path.stat().st_size / 3000 + 1),
+        )
+    print("MCU readback verified", len(files), "files")
 
 
 def main():
@@ -293,7 +338,7 @@ def main():
     if source_root == drive or drive in source_root.parents:
         raise SystemExit("Source must be a local project or backup, outside the device")
     files = (
-        [source_root / name for name in APP_FILES]
+        [source_root / name for name in APP_FILES + FONT_FILES]
         if args.action == "deploy"
         else inventory(source_root)
     )
@@ -345,6 +390,7 @@ def main():
         )
         copied = True
         if port is not None:
+            verify_on_device(port, files, source_root)
             hard_reset(port)
             port = None
             # Reconnect without interrupting the normal logging application.

@@ -125,3 +125,30 @@ def test_retry_timer_recovers_before_next_sample_and_tracks_health():
     sensors.read_sensors(60)
     assert sensors.health(61)[0]["state"] == "ready"
     assert sensors.health(61)[0]["last_good"] == 60
+
+
+def test_sensor_arithmetic_faults_do_not_stop_other_fields_or_retry_loop():
+    class BadCalibration:
+        humidity = 40
+        pressure = 835
+
+        @property
+        def temperature(self):
+            raise ZeroDivisionError("bad calibration")
+
+    sensors = SensorData(object(), config, lambda *_: PM(), lambda *_, **__: BadCalibration())
+    assert sensors.read_sensors(0)
+    assert sensors.pm == 12 and sensors.humidity == 40
+    assert sensors.temperature_c is None
+    assert sensors.health(0)[1]["errors"] == 1
+
+
+def test_sensor_factory_arithmetic_fault_does_not_prevent_other_sensor():
+    def factory(*_):
+        raise OverflowError("invalid calibration")
+
+    sensors = SensorData(object(), config, factory, lambda *_, **__: bme())
+    assert sensors.read_sensors(0)
+    sensors.service_retries(30)
+    assert sensors.temperature_c == 20 and sensors.pm is None
+    assert sensors.health(30)[0]["errors"] == 2

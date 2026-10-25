@@ -9,9 +9,30 @@ from weather_metrics import temperature_from_f
 from weather_runtime import age_text
 
 
+class _NumberFont:
+    """Use actual numeric glyph extents; source BDF ascents clip some digits."""
+
+    def __init__(self, font):
+        self.source_font = font
+        glyphs = [font.get_glyph(ord(char)) for char in "0123456789.-%+M"]
+        if any(glyph is None for glyph in glyphs):
+            raise ValueError("Numeric font is missing required glyphs")
+        self.ascent = max(glyph.height + glyph.dy for glyph in glyphs)
+        self.descent = max(0, max(-glyph.dy for glyph in glyphs))
+        self._bounds = (max(glyph.width + glyph.dx for glyph in glyphs),
+                        self.ascent + self.descent, 0, -self.descent)
+
+    def get_glyph(self, code_point):
+        return self.source_font.get_glyph(code_point)
+
+    def get_bounding_box(self):
+        return self._bounds
+
+
 class Display:
     DATA_TYPES = ("PM2.5", "Pressure", "Temp", "Humidity")
     UNITS = ("ug/m3", "hPa", "F", "%RH")
+    HOME_HOURS = 12
 
     def __init__(self, display, config):
         self.display = display
@@ -24,6 +45,8 @@ class Display:
         self.temperature_unit = config.TEMPERATURE_UNIT
         self._retry_at = 0.0
         self._refresh_error = False
+        self._blocked_since = None
+        self._failed_since = None
         self._now = self._uptime = 0
         self._health = ({}, {})
         self._has_archive = False
@@ -53,18 +76,46 @@ class Display:
         ):
             self.root.append(group)
 
-        self._label("TEMPERATURE", 4, 20, group=self.home_group)
-        self._label("PM2.5 ug/m3", 160, 20, group=self.home_group)
-        self.temperature = self._label("--", 4, 44, 3, self.home_group)
-        self.temperature_units = self._label(self.temperature_unit, 100, 55, group=self.home_group)
-        self.pm = self._label("--", 160, 44, 3, self.home_group)
-        self.humidity = self._label("RH -- %", 4, 69, group=self.home_group)
-        self.pressure = self._label("P -- hPa", 80, 69, group=self.home_group)
-        self.battery = self._label("", 252, 69, group=self.home_group)
-        self.pm_status = self._label("Est AQI: needs 2 recent hours", 4, 82, group=self.home_group)
-        self.home_age = self._label(
-            "BME initializing; PM initializing", 4, 95, group=self.home_group
-        )
+        self.large_font, self.small_font = self._load_fonts()
+        self._label("TEMPERATURE", 8, 22, group=self.home_group)
+        self._label("PM2.5", 158, 22, group=self.home_group)
+        self.temperature = self._number_label(8, 62, self.large_font)
+        self.temperature_units = self._label(self.temperature_unit, 128, 56, group=self.home_group)
+        self.pm = self._number_label(158, 62, self.large_font)
+        self._label("ug/m3", 254, 21, group=self.home_group)
+        self._label("RH", 8, 85, group=self.home_group)
+        self.dew_caption = self._label("DEW F", 78, 85, group=self.home_group)
+        self._label("hPa", 148, 85, group=self.home_group)
+        self._label("EST AQI", 230, 85, group=self.home_group)
+        self.humidity = self._number_label(8, 104, self.small_font)
+        self.dew = self._number_label(78, 104, self.small_font)
+        self.pressure = self._number_label(148, 104, self.small_font)
+        self.pm_status = self._number_label(230, 104, self.small_font)
+        self.aqi_band = self._label("WAIT", 266, 97, group=self.home_group)
+        self.home_header_group = displayio.Group()
+        self.home_freshness = self._label("", 110, 7, group=self.home_header_group)
+        self.battery = self._label("", 260, 7, group=self.home_header_group)
+        for text, x in (("A Metric", 8), ("B Range", 84), ("C LEDs", 160), ("D Page", 254)):
+            self._label(text, x, 121, group=self.home_group)
+        # Keep the full age descriptions on Measurements, with compact ages at Home.
+        self.home_age = self._label("", 4, 95, group=self.home_group)
+        self.home_age.hidden = True
+        rules = displayio.Bitmap(display.width, display.height, 2)
+        for y in (12, 79, 116):
+            for x in range(6, display.width - 6):
+                rules[x, y] = 1
+        for y in range(16, 78):
+            rules[148, y] = 1
+        rule_palette = displayio.Palette(2)
+        rule_palette[1] = 0x000000
+        rule_palette.make_transparent(0)
+        self.home_group.append(displayio.TileGrid(rules, pixel_shader=rule_palette))
+        self.home_sparks = []
+        for x in (8, 158):
+            spark = displayio.Bitmap(101, 12, 2)
+            self.home_sparks.append(spark)
+            self.home_group.append(displayio.TileGrid(spark, pixel_shader=self.palette, x=x, y=66))
+            self._label("12h", x + 110, 72, group=self.home_group)
 
         self.graph_x, self.graph_y = 40, 36
         self.graph_width = display.width - self.graph_x - 2
@@ -98,6 +149,7 @@ class Display:
         banner.fill(1)
         self.alert_group.append(displayio.TileGrid(banner, pixel_shader=self.palette))
         self.root.append(self.alert_group)
+        self.root.append(self.home_header_group)
         self.head = self._label("WEATHER", 4, 8, group=self.root)
         self.page_badge = self._label("1/4", 272, 8, group=self.root)
         self.outlook = self._label("Hold C: F/C  Hold D: Home", 4, 108, group=self.root)
@@ -108,6 +160,49 @@ class Display:
             display.root_group = self.root
         else:
             display.show(self.root)
+
+    @staticmethod
+    def _load_fonts():
+        """Bound the glyph cache; missing optional font assets retain a usable UI."""
+        try:
+            from adafruit_bitmap_font import bitmap_font
+
+            fonts = tuple(
+                bitmap_font.load_font("fonts/leaguespartan" + size + ".bdf")
+                for size in ("18", "11")
+            )
+            for font in fonts:
+                font.load_glyphs("0123456789.-%+M ")
+            return tuple(_NumberFont(font) for font in fonts)
+        except (ImportError, OSError, ValueError, RuntimeError, MemoryError,
+                AttributeError, TypeError, IndexError) as error:
+            print("Instrument fonts unavailable; using built-in font:", error)
+            return terminalio.FONT, terminalio.FONT
+
+    def _number_label(self, x, bottom, font):
+        item = bitmap_label.Label(
+            font, text="--", color=0x000000, scale=1, x=x, y=bottom,
+        )
+        self.home_group.append(item)
+        return item
+
+    @staticmethod
+    def _number(item, text, x, bottom, width, preferred_scale=1):
+        """Fit actual glyph bounds, retaining decimals and signs at sensor extremes."""
+        if item.text != text:
+            item.text = text
+        scale = preferred_scale
+        while scale > 1 and item.bounding_box[2] * scale > width:
+            scale -= 1
+        item.scale = scale
+        # Old bitmap_label anchors use tight glyph height even when the actual
+        # bitmap is a full font line. Position by baseline so '--' cannot drop
+        # below its row when a sensor becomes unavailable.
+        ascent = getattr(item.font, "ascent", None)
+        if ascent is None:
+            ascent = item.font.get_bounding_box()[1]
+        item.x = x - item.bounding_box[0] * scale
+        item.y = bottom - (ascent + item.bounding_box[1]) * scale
 
     def _label(self, text, x, y, scale=1, group=None):
         item = bitmap_label.Label(terminalio.FONT, text=text, color=0x000000, x=x, y=y, scale=scale)
@@ -135,6 +230,7 @@ class Display:
 
     def _show_screen(self):
         self.home_group.hidden = self.screen != "home"
+        self.home_header_group.hidden = self.screen != "home"
         self.weather_group.hidden = self.screen not in ("weather", "archive")
         self.details_group.hidden = self.screen != "details"
         self.diagnostics_group.hidden = self.screen != "diagnostics"
@@ -164,10 +260,24 @@ class Display:
         self.alert_group.hidden = not bool(self._alert_text)
         color = 0xFFFFFF if self._alert_text else 0x000000
         self.head.color = self.page_badge.color = color
+        self.home_freshness.color = self.battery.color = color
         title = self._alert_text or titles[self.screen]
         if self._alert_text and self.screen == "archive":
             title = "ARCHIVE | " + title
-        self._put(self.head, title, 43)
+        at_home = self.screen == "home"
+        if at_home and self._alert_text:
+            title = "ALERT"
+        elif at_home:
+            failed = [name for name, index in (("PM", 0), ("BME", 1))
+                      if self._health[index].get("state") not in (None, "ready", "initializing")]
+            if failed:
+                title = "/".join(failed) + " OFFLINE"
+        self._put(self.head, title, 17 if at_home else 43)
+        self.head.y = 7 if at_home else 8
+        self.page_badge.hidden = at_home
+        self.footer.hidden = at_home
+        self.outlook.y = 109 if at_home else 108
+        self.footer.y = 123 if at_home else 120
         screens = self._screens()
         index = screens.index(self.screen) if self.screen in screens else len(screens) - 1
         self.page_badge.text = "{}/{}".format(index + 1, len(screens))
@@ -242,6 +352,22 @@ class Display:
             self.home_age, self._sensor_caption("BME", 1) + "; " + self._sensor_caption("PM", 0)
         )
         self._put(self.details_labels[5], self.home_age.text)
+        parts = []
+        for name, index in (("B", 1), ("P", 0)):
+            good = self._health[index].get("last_good")
+            seconds = max(0, self._now - good) if good is not None else None
+            if seconds is None:
+                age = "--"
+            elif seconds < 60:
+                age = "{}s".format(int(seconds))
+            elif seconds < 3600:
+                age = "{}m".format(int(seconds // 60))
+            elif seconds < 86400:
+                age = "{}h".format(int(seconds // 3600))
+            else:
+                age = "{}d".format(min(999, int(seconds // 86400)))
+            parts.append(name + ":" + age)
+        self._put(self.home_freshness, " ".join(parts), 24)
 
     def _reason(self, key, fallback):
         return self._status.get(key) or fallback
@@ -251,25 +377,37 @@ class Display:
         temperature = temperature_from_f(
             sensors.temperature_f if sensors else None, self.temperature_unit
         )
-        self._put(self.temperature, self._format(temperature), 5)
+        self._number(self.temperature, self._format(temperature), 8, 62, 112, 2)
         self.temperature_units.text = self.temperature_unit
-        self._put(self.pm, self._format(sensors.pm if sensors else None), 6)
-        self._put(
-            self.humidity, "RH " + self._format(sensors.humidity if sensors else None, 0) + " %", 11
+        self._number(self.pm, self._format(sensors.pm if sensors else None), 158, 62, 132, 2)
+        humidity = self._format(sensors.humidity if sensors else None, 0)
+        self._number(self.humidity, humidity + ("%" if humidity != "--" else ""), 8, 103, 62)
+        dew_c = self._details[0]
+        dew = (
+            None if dew_c is None else (dew_c * 1.8 + 32 if self.temperature_unit == "F" else dew_c)
         )
-        self._put(
-            self.pressure, "P " + self._format(sensors.pressure if sensors else None) + " hPa", 26
-        )
+        self.dew_caption.text = "DEW " + self.temperature_unit
+        self._number(self.dew, self._format(dew), 78, 103, 62)
+        self._number(self.pressure, self._format(sensors.pressure if sensors else None),
+                     148, 103, 76)
         self._put(
             self.battery, self._format(self._battery_voltage) + "V" if self._battery_voltage else ""
         )
         estimate = self._details[3]
         aqi = estimate.get("aqi")
-        if aqi is None:
-            text = self._reason("aqi_reason", "Est AQI: needs 2 recent hours")
+        if not sensors or sensors.pm is None:
+            aqi, band = None, (
+                "WAIT" if self._health[0].get("state", "initializing") == "initializing" else "OFF"
+            )
+        elif aqi is None:
+            band = "WAIT"
         else:
-            text = "Est AQI {} | {}".format(aqi, estimate.get("category", "Unknown"))
-        self._put(self.pm_status, text)
+            band = {"Good": "GOOD", "Moderate": "MOD", "Sensitive": "USG",
+                    "Unhealthy": "UNH", "V.Unhealthy": "VUNH", "Hazardous": "HAZ"}.get(
+                        estimate.get("category"), "--")
+        self._number(self.pm_status, "--" if aqi is None else ("999+" if aqi > 999 else str(aqi)),
+                     230, 103, 32)
+        self._put(self.aqi_band, band, 4)
         self._render_ages()
 
     def update_sensors(self, sensors, trend, forecast, battery_voltage=None):
@@ -356,12 +494,15 @@ class Display:
             text = "Hold C: F/C  Hold D: Home"
         elif self.screen == "weather":
             text = "Missing slots are gaps; Hold D: Home"
+        elif self.screen == "home" and self._alert_text:
+            text = self._alert_text
         elif self._sensors and (self._sensors.pm is None or self._sensors.temperature_f is None):
             text = "-- means sensor unavailable; retrying"
         elif self._details[2] is None:
             text = self._reason("pressure_reason", "Forecast: collecting 3h")
         else:
-            text = self._forecast
+            text = "P {:+.1f}hPa/3h | ".format(self._details[2]) + self._forecast.replace(
+                "Outlook: ", "")
         self._put(self.outlook, text)
 
     def update_diagnostics(self, diagnostics, now):
@@ -390,7 +531,14 @@ class Display:
             self.refresh_needed = True
 
     def update_graph(self, history):
-        if not self.graph_dirty or self.screen not in ("weather", "archive") or history is None:
+        if not self.graph_dirty or history is None:
+            return
+        if self.screen == "home":
+            self._update_home_trends(history)
+            self.graph_dirty = False
+            self.refresh_needed = True
+            return
+        if self.screen not in ("weather", "archive"):
             return
         hours = self.config.RESOLUTION_HOURS[self.resolution_index]
         window = max(1, int(hours * 3600 / history.interval_seconds))
@@ -427,6 +575,28 @@ class Display:
         self.graph_dirty = False
         self.refresh_needed = True
 
+    def _update_home_trends(self, history):
+        """Two fixed-size twelve-hour plots; no scans on ordinary idle ticks."""
+        window = max(1, int(self.HOME_HOURS * 3600 / history.interval_seconds))
+        for series, bitmap in zip((2, 0), self.home_sparks):
+            low, _, high, _, _, columns = history.summarize(series, window, bitmap.width)
+            bitmap.fill(0)
+            for x in range(0, bitmap.width, 4):
+                bitmap[x, bitmap.height - 1] = 1
+            if low is None:
+                continue
+            if high - low < 0.1:
+                low -= 0.5
+                high += 0.5
+            # A min/max mark for each occupied bucket preserves peaks and gaps.
+            for x, extrema in enumerate(columns):
+                if extrema is None:
+                    continue
+                top = 9 - int((extrema[1] - low) / (high - low) * 8)
+                bottom = 9 - int((extrema[0] - low) / (high - low) * 8)
+                for y in range(max(1, top), min(9, bottom) + 1):
+                    bitmap[x, y] = 1
+
     def draw_graph(self, columns, low, high):
         self.bitmap.fill(0)
         if low is None:
@@ -462,17 +632,29 @@ class Display:
             self.refresh_needed = True
         if not self.refresh_needed or now < self._retry_at:
             return False
-        if getattr(self.display, "busy", False) or getattr(self.display, "time_to_refresh", 0) > 0:
+        if getattr(self.display, "busy", False):
+            if self._blocked_since is None:
+                self._blocked_since = now
+            if now - self._blocked_since >= 60:
+                raise RuntimeError("Display remained busy for 60 seconds")
+            return False
+        self._blocked_since = None
+        if getattr(self.display, "time_to_refresh", 0) > 0:
             return False
         try:
             self.display.refresh()
         except RuntimeError as error:
+            if self._failed_since is None:
+                self._failed_since = now
+            if now - self._failed_since >= 60:
+                raise RuntimeError("Display refresh failed for 60 seconds: " + str(error))
             if not self._refresh_error:
                 print("Display refresh deferred:", error)
             self._refresh_error = True
             self._retry_at = now + 1
             return False
         self._refresh_error = False
+        self._failed_since = None
         self.refresh_needed = False
         if self._ack_text is not None and self._ack_rendered_at is None:
             self._ack_rendered_at = now

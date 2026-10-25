@@ -44,14 +44,20 @@ class WeatherStation:
         self.config = settings
         self.started_at = time.monotonic()
         self.editing = editing_mode()
+        self.watchdog = WatchdogGuard(
+            settings.WATCHDOG_ENABLED, settings.WATCHDOG_TIMEOUT_SECONDS, self.editing
+        )
         # The legacy MagTag wrapper constructs networking and requires secrets.py.
         # This station only needs the board's display and local peripherals.
         self.peripherals = Peripherals()
+        self.watchdog.feed()
         self.i2c = busio.I2C(board.SCL, board.SDA, frequency=100_000)
         self.sensors = SensorData(self.i2c, settings)
+        self.watchdog.feed()
         self.forecaster = ZambrettiForecaster()
         self.controls = UIController(debounce_seconds=settings.BUTTON_DEBOUNCE_SECONDS)
         self.display = Display(board.DISPLAY, settings)
+        self.watchdog.feed()
         self.leds = LEDManager(
             self.peripherals, settings.LED_BRIGHTNESS_LEVELS, settings.LED_BRIGHTNESS_INDEX
         )
@@ -60,6 +66,7 @@ class WeatherStation:
             settings.CHECKPOINT_DIRECTORY,
             settings.HISTORY_SAMPLES,
             settings.READING_INTERVAL_SECONDS,
+            progress_callback=self.watchdog.feed,
         )
         self.archive = None
         self.restore_info = None
@@ -89,14 +96,13 @@ class WeatherStation:
         self._checkpoint_due = now + 30
         self._diagnostics_due = now
         self.reset_cause = reset_reason()
-        self.watchdog = WatchdogGuard(
-            settings.WATCHDOG_ENABLED, settings.WATCHDOG_TIMEOUT_SECONDS, self.editing
-        )
-        self.store.progress_callback = self.watchdog.feed
+        self.watchdog.feed()
         print(
-            "MagTag weather station v4.0.2; standalone; history payload:",
+            "MagTag weather station v4.1.0; Instrument; standalone; history payload:",
             self.history.storage_bytes,
-            "bytes; watchdog",
+            "bytes; reset",
+            self.reset_cause,
+            "; watchdog",
             self.watchdog.status,
         )
 

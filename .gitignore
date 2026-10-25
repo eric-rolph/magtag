@@ -21,6 +21,7 @@ device-backups/
 *.bundle
 weather-state/
 boot_out.txt
+last-crash.txt
 wipper_boot_out.txt
 hardware*smoke-test.txt
 deployment-verification.json

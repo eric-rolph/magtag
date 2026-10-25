@@ -1,7 +1,58 @@
 # Validation
 
 Baseline hardware measurements: October 9, 2026, Adafruit MagTag with
-CircuitPython 7.1.1. Desktop validation was repeated for 4.0.2 on October 19.
+CircuitPython 7.1.1. Desktop validation was repeated for 4.0.3 on October 24.
+
+## Instrument dashboard — October 25
+
+Version 4.1.0 passes 413 desktop tests, Ruff, and the Python 3.7 source syntax check.
+The supplied fonts render their actual pixels in desktop previews. On-board
+testing exposed clipped numeric ascenders in the original BDF metadata and the
+legacy label library's inconsistent anchoring of short dash glyphs. The renderer
+now uses measured numeric extents and baseline placement; fonts remain unmodified.
+
+The connected CircuitPython 7.1.1 board passed 22 layout cases covering both
+temperature units, extreme/missing readings, all pages, and alerts. The test
+checks visible glyph pixels, excluding transparent terminal-font cell padding.
+No glyph overlaps, out-of-screen pixels, or font clipping warnings remained.
+Forty repeated home redraws and 29 simulated control gestures also passed.
+See validation.json for the measured runtime and heap sizes. These were simulated
+inputs, not automated physical button presses.
+
+All 17 application/font/license files were flushed, host-hash checked, and read
+back through the MCU. A verified pre-installation backup was retained. After the
+final restart, three real sensor samples spanning approximately two minutes were
+observed with the 30-second watchdog armed and no traceback or font warning.
+This is a short USB-powered run, not a long-term physical endurance test.
+
+## Crash recovery audit — October 24
+
+The connected drive again contained only the factory Hello World program and
+an empty library folder. Its NVM retained the station's marker, and both sensor
+addresses responded. No previous application traceback remained. The cause of
+the missing files could not be established from this state; filesystem damage
+or an earlier reset/reformat must not be presented as a confirmed diagnosis.
+
+Version 4.0.3 addresses gaps found during the audit: application imports and
+unexpected runtime errors now preserve a bounded report and restart; hardware
+initialization is covered by the watchdog; stuck display states request recovery;
+sensor arithmetic faults are isolated; and uploads flush files and verify MCU
+readback before resetting. Host SHA-256 verification alone can read cached data.
+
+Desktop validation passes 398 tests, Ruff, and Python 3.7 source syntax checks.
+The 21-day accelerated replay passes all invariants. The board passes 29 simulated
+control actions and the display timeout/traceback capture checks. An intentionally
+raised exception was saved to `/last-crash.txt` and followed by automatic restart.
+A deliberately stalled startup also triggered the watchdog and restarted
+successfully. The final normal run produced two scheduled readings, saved a
+CRC-valid checkpoint, and retained all 14 modules across resets. The intentional
+test crash report was removed. Raw transcripts and the pre-repair drive backup
+remain local.
+
+The original disappearance of the application remains unexplained. This audit
+does not establish long-term hardware endurance, power-loss tolerance, or flash
+health. CircuitPython documents Windows safe-eject precautions in its
+[filesystem troubleshooting guide](https://docs.circuitpython.org/en/latest/docs/troubleshooting.html).
 
 ## Clean installation recovery — October 19
 

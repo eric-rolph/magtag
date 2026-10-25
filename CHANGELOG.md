@@ -1,5 +1,30 @@
 # Changelog
 
+## 4.1.0 — 2026-10-25
+
+- Implement the Instrument home screen with large League Spartan numeric type,
+  two bounded twelve-hour plots, and a humidity/dew-point/pressure/AQI strip.
+- Retain sensor ages, battery voltage, all navigation, alerts, and setting feedback.
+- Fit long values by measured glyph width; show missing readings explicitly and
+  use the built-in font if optional typography assets cannot load.
+- Reuse existing sample and refresh scheduling; preserve plot peaks and empty buckets.
+- Include font assets and their license in verified USB deployments.
+- Validate all pages, extreme/missing values, AQI states, startup plots, idle
+  redraw behavior, and font fallback; preview the actual numeric font pixels.
+
+## 4.0.3 — 2026-10-24
+
+- Guard application imports and runtime failures: preserve a bounded last-crash
+  report and restart in normal logging mode. Editing errors and Ctrl-C retain REPL access.
+- Arm the watchdog before hardware initialization and service it during history
+  restoration, so a startup stall is also covered.
+- Recover if the display remains busy or repeatedly rejects refreshes for 60 seconds,
+  instead of feeding the watchdog forever with a frozen screen.
+- Treat sensor arithmetic/calibration errors as recoverable per-sensor failures.
+- Flush each uploaded file before hash verification, then verify CRC32 through
+  the MCU before resetting. A flush/readback failure leaves the device paused.
+- Add fault tests for startup, runtime, logging failures, stuck displays, and sensor errors.
+
 ## 4.0.2 — 2026-10-19
 
 - Fix a crash when tapping D: replace `str.capitalize()`, unavailable on
