@@ -1,7 +1,7 @@
 {
-  "version": "4.0.3",
-  "date": "2026-10-24",
-  "desktop_tests_passed": 398,
+  "version": "4.1.0",
+  "date": "2026-10-25",
+  "desktop_tests_passed": 413,
   "ruff": "passed",
   "device_source_python_37_syntax": "passed",
   "firmware": "CircuitPython 7.1.1",
@@ -93,6 +93,24 @@
     "all_14_modules_preserved_after_resets": true,
     "checkpoint_crc_valid": true,
     "accelerated_21_day_replay_invariants": true,
+    "physical_endurance_test": false
+  },
+  "instrument_validation": {
+    "date": "2026-10-25",
+    "layout_cases_on_board": 22,
+    "visible_glyph_bounds_and_overlap_failures": 0,
+    "fonts_loaded": true,
+    "glyph_clipping_warnings": 0,
+    "repeated_home_redraws": 40,
+    "redraw_seconds": 22.35,
+    "free_bytes_before_redraws": 1771248,
+    "free_bytes_after_redraws": 1771248,
+    "simulated_control_actions": 29,
+    "physical_button_presses": false,
+    "normal_scheduled_readings_observed": 3,
+    "normal_sampling_span_seconds": 119.72999999999999,
+    "watchdog_armed": true,
+    "device_files_host_sha256_and_mcu_crc_verified": 17,
     "physical_endurance_test": false
   }
 }

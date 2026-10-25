@@ -64,9 +64,16 @@ def label_rects(view):
         y = offset_y + getattr(item, "y", 0) * parent_scale
         if isinstance(item, Label) and item.text:
             scale = parent_scale * item.scale
-            rects.append(
-                (item.text, (x, y - 6 * scale, x + len(item.text) * 6 * scale, y + 6 * scale))
-            )
+            if hasattr(item.font, "source_font"):
+                bx, by, width, height = item.font.source_font.bounds(item.text)
+                baseline = y + (item.font.ascent + item.bounding_box[1]) * scale
+                rects.append((item.text, (x + bx * scale, baseline + by * scale,
+                                         x + (bx + width) * scale,
+                                         baseline + (by + height) * scale)))
+            else:
+                rects.append(
+                    (item.text, (x, y - 6 * scale, x + len(item.text) * 6 * scale, y + 6 * scale))
+                )
         elif isinstance(item, TileGrid):
             assert 0 <= x and x + item.bitmap.width * parent_scale <= view.display.width
             assert 0 <= y and y + item.bitmap.height * parent_scale <= view.display.height
@@ -95,12 +102,13 @@ def test_home_is_default_and_large_values_have_units_and_sensor_ages(view):
     view.update_sensors(sensors(), "steady", "Outlook: Fine weather", 4.1)
     details(view)
     assert view.screen == "home"
-    assert view.temperature.text == "68.0" and view.temperature.scale == 3
-    assert view.pm.text == "12.0" and view.pm.scale == 3
+    assert view.temperature.text == "68.0" and view.temperature.scale == 2
+    assert view.pm.text == "12.0" and view.pm.scale == 2
     assert view.temperature_units.text == "F"
     assert view.battery.text == "4.1V"
-    assert "Est AQI 55 | Moderate" in visible_text(view)
-    assert "BME good 1s; PM good 1m" in visible_text(view)
+    assert view.pm_status.text == "55" and view.aqi_band.text == "MOD"
+    assert view.home_freshness.text == "B:1s P:1m"
+    assert view.dew.text == "50.0" and view.dew_caption.text == "DEW F"
     assert_layout(view)
 
 
@@ -234,6 +242,7 @@ def test_elapsed_time_alone_does_not_request_another_refresh(view):
 
 
 def test_pending_metrics_use_readable_reasons_on_home_and_measurements(view):
+    context(view, pm_state="initializing")
     view.update_status(
         {
             "aqi_reason": "AQI: needs 2 recent hours",
@@ -243,7 +252,7 @@ def test_pending_metrics_use_readable_reasons_on_home_and_measurements(view):
         }
     )
     details(view, dew_c=None, pm_mean=None, pressure_delta=None, estimate={"aqi": None})
-    assert "AQI: needs 2 recent hours" in visible_text(view)
+    assert view.pm_status.text == "--" and view.aqi_band.text == "WAIT"
     show(view, "details")
     text = visible_text(view)
     for line in (
@@ -265,6 +274,9 @@ def test_black_and_white_alert_banner_is_prominent_on_every_page(view):
         expected = "ALERT: PM high, Pressure change"
         if page == "archive":
             expected = "ARCHIVE | " + expected
+        elif page == "home":
+            assert view.outlook.text == expected
+            expected = "ALERT"
         assert view.head.text == expected
         assert view.head.color == view.page_badge.color == 0xFFFFFF
         assert not view.alert_group.hidden
@@ -339,7 +351,7 @@ def test_graph_controls_cycle_after_open_and_archive_keeps_selected_page(view):
     assert view.screen == "archive" and view.graph_index == 2 and view.resolution_index == 4
 
 
-@pytest.mark.parametrize("screen", ["home", "details", "diagnostics"])
+@pytest.mark.parametrize("screen", ["details", "diagnostics"])
 def test_hidden_graph_never_scans_history(view, screen):
     show(view, screen)
     history = DataHistory()
@@ -503,3 +515,103 @@ def test_hidden_nested_groups_are_skipped_and_group_transforms_accumulate():
     assert list(visible_items(outer)) == [(label, 10, 13, 6)]
     inner.hidden = True
     assert list(visible_items(outer)) == []
+
+
+def test_instrument_trends_are_bounded_and_only_redrawn_when_dirty(view):
+    history = DataHistory()
+    history.add_reading(12, 1013, 70, 40, 0)
+    original = history.summarize
+    calls = []
+
+    def summarize(series, window, width):
+        calls.append((series, window, width))
+        return original(series, window, width)
+
+    history.summarize = summarize
+    view.update_graph(history)
+    assert calls == [(2, 720, 101), (0, 720, 101)]
+    for bitmap in view.home_sparks:
+        # Startup data appears at the right edge; no fabricated earlier readings.
+        assert any(bitmap.pixels[y * 101 + 100] for y in range(10))
+        assert not any(bitmap.pixels[y * 101 + x] for y in range(10) for x in range(100))
+    view.display.time_to_refresh = 10
+    view.update_graph(history)
+    assert len(calls) == 2
+    view.refresh(0)
+    view.update_graph(history)
+    assert len(calls) == 2
+
+
+def test_instrument_trends_keep_spikes_and_unoccupied_buckets_empty(view):
+    history = DataHistory(720)
+    for slot in range(720):
+        missing = 250 <= slot < 290
+        history.add_reading(None if missing else (200 if slot == 400 else 10),
+                            1013, None if missing else 70, 40, slot * 60)
+    view.update_graph(history)
+    pm = view.home_sparks[1]
+    gap_x = 270 * 101 // 720
+    assert not any(pm.pixels[y * 101 + gap_x] for y in range(10))
+    peak_x = 400 * 100 // 719
+    assert all(pm.pixels[y * 101 + peak_x] for y in range(1, 10))
+
+
+@pytest.mark.parametrize("aqi,category", [(0, "Good"), (110, "Sensitive"),
+                                         (210, "V.Unhealthy"), (1000, "Hazardous")])
+def test_aqi_category_and_large_index_fit(view, aqi, category):
+    context(view)
+    view.update_sensors(sensors(), "steady", "Fine", 4.2)
+    details(view, estimate={"aqi": aqi, "category": category})
+    assert view.pm_status.text == ("999+" if aqi > 999 else str(aqi))
+    assert_layout(view)
+
+
+def test_missing_pm_does_not_show_a_prior_estimate_as_current(view):
+    context(view, pm_state="read failed")
+    view.update_sensors(sensors(pm=None), "steady", "Fine", 4.2)
+    details(view, estimate={"aqi": 55, "category": "Moderate"})
+    assert view.pm.text == "--" and view.pm_status.text == "--"
+    assert view.aqi_band.text == "OFF" and view.head.text == "PM OFFLINE"
+
+
+@pytest.mark.parametrize("pm", [12.0, 60.2, 80.0, 99.9])
+def test_common_pm_readings_keep_large_type_without_colliding_with_units(view, pm):
+    context(view)
+    view.update_sensors(sensors(pm=pm), "steady", "Fine", 4.1)
+    details(view)
+    assert view.pm.scale == 2
+    assert_layout(view)
+
+
+def test_long_sensor_ages_fit_and_are_not_clipped_into_other_header_fields(view):
+    context(view, now=1e9, bme_state="read failed", pm_state="read failed")
+    assert view.home_freshness.text == "B:999d P:999d"
+    assert_layout(view)
+
+
+@pytest.mark.parametrize("pm,temperature", [(3276.7, -40), (None, None), (12, 72.4)])
+def test_missing_optional_font_assets_fall_back_without_breaking_dashboard(
+    monkeypatch, pm, temperature
+):
+    install()
+    import adafruit_bitmap_font
+
+    def missing(_):
+        raise OSError("font missing")
+
+    monkeypatch.setattr(adafruit_bitmap_font.bitmap_font, "load_font", missing)
+    module = importlib.import_module("weather_display")
+    view = module.Display(FakeDisplay(), config)
+    context(view)
+    view.update_sensors(sensors(pm=pm, temperature=temperature, humidity=100), "-", "Waiting", 4.2)
+    details(view, estimate={"aqi": 9999, "category": "V.Unhealthy"})
+    assert view.pm.text == view._format(pm) and view.temperature.text == view._format(temperature)
+    assert_layout(view)
+
+
+def test_number_font_extents_include_every_used_glyph_without_ascent_clipping(view):
+    for font in (view.large_font, view.small_font):
+        for char in "0123456789.-%+M":
+            glyph = font.get_glyph(ord(char))
+            assert glyph.height + glyph.dy <= font.ascent
+            assert -glyph.dy <= font.descent

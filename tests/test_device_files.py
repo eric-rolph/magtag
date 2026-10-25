@@ -19,7 +19,8 @@ def test_deploy_verifies_backup_and_preserves_device_credentials(tmp_path, monke
     device = fake_device(tmp_path)
     source = tmp_path / "project"
     source.mkdir()
-    for name in device_files.APP_FILES:
+    for name in device_files.APP_FILES + device_files.FONT_FILES:
+        (source / name).parent.mkdir(parents=True, exist_ok=True)
         (source / name).write_text("new " + name)
     backups = tmp_path / "backups"
     monkeypatch.setattr(
@@ -101,7 +102,8 @@ def configure_arguments(monkeypatch, device, source, backups, action="deploy", p
 def new_project(tmp_path):
     source = tmp_path / "project"
     source.mkdir()
-    for name in device_files.APP_FILES:
+    for name in device_files.APP_FILES + device_files.FONT_FILES:
+        (source / name).parent.mkdir(parents=True, exist_ok=True)
         (source / name).write_text("new " + name)
     return source
 
@@ -210,9 +212,12 @@ def test_entry_point_is_copied_after_all_dependencies_and_boot(tmp_path, monkeyp
         return real_copy(original, destination)
 
     monkeypatch.setattr(device_files.shutil, "copy2", tracked_copy)
-    device_files.copy_verified(list(source.iterdir())[::-1], source, device)
+    device_files.copy_verified(device_files.inventory(source)[::-1], source, device)
     assert copied[-2:] == ["boot.py", "code.py"]
-    assert set(copied[:-2]) == set(device_files.APP_FILES) - {"boot.py", "code.py"}
+    assert set(copied[:-2]) == (
+        set(device_files.APP_FILES) - {"boot.py", "code.py"}
+        | {Path(name).name for name in device_files.FONT_FILES}
+    )
 
 
 def test_serial_standalone_update_pauses_before_backup_and_uses_hardware_resets(

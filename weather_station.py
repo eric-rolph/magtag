@@ -98,7 +98,7 @@ class WeatherStation:
         self.reset_cause = reset_reason()
         self.watchdog.feed()
         print(
-            "MagTag weather station v4.0.3; standalone; history payload:",
+            "MagTag weather station v4.1.0; Instrument; standalone; history payload:",
             self.history.storage_bytes,
             "bytes; reset",
             self.reset_cause,

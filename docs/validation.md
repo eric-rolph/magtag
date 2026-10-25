@@ -3,6 +3,28 @@
 Baseline hardware measurements: October 9, 2026, Adafruit MagTag with
 CircuitPython 7.1.1. Desktop validation was repeated for 4.0.3 on October 24.
 
+## Instrument dashboard — October 25
+
+Version 4.1.0 passes 413 desktop tests, Ruff, and the Python 3.7 source syntax check.
+The supplied fonts render their actual pixels in desktop previews. On-board
+testing exposed clipped numeric ascenders in the original BDF metadata and the
+legacy label library's inconsistent anchoring of short dash glyphs. The renderer
+now uses measured numeric extents and baseline placement; fonts remain unmodified.
+
+The connected CircuitPython 7.1.1 board passed 22 layout cases covering both
+temperature units, extreme/missing readings, all pages, and alerts. The test
+checks visible glyph pixels, excluding transparent terminal-font cell padding.
+No glyph overlaps, out-of-screen pixels, or font clipping warnings remained.
+Forty repeated home redraws and 29 simulated control gestures also passed.
+See validation.json for the measured runtime and heap sizes. These were simulated
+inputs, not automated physical button presses.
+
+All 17 application/font/license files were flushed, host-hash checked, and read
+back through the MCU. A verified pre-installation backup was retained. After the
+final restart, three real sensor samples spanning approximately two minutes were
+observed with the 30-second watchdog armed and no traceback or font warning.
+This is a short USB-powered run, not a long-term physical endurance test.
+
 ## Crash recovery audit — October 24
 
 The connected drive again contained only the factory Hello World program and

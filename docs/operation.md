@@ -35,6 +35,26 @@ configurable. Invalid settings produce startup errors.
 
 ## History and estimates
 
+The Instrument home screen uses the supplied League Spartan bitmap fonts for
+numbers. Missing font files or an unavailable font library fall back to the
+built-in font. Long readings reduce their integer font scale instead of losing
+digits or colliding with units.
+
+The small temperature and PM2.5 plots always cover the latest twelve hours of
+the current session. Each plot retains per-column minima and maxima; missing
+buckets stay empty and startup data aligns at the right. Their vertical ranges
+scale independently; open Graphs with A to see numeric axes or change the range.
+They are redrawn on a sample or navigation change, never on idle ticks. The
+existing sample cadence and e-paper cooldown are unchanged.
+
+Header `B:` and `P:` show the ages of the last successful BME280 and PM readings
+at the most recent refresh. `--` means no successful reading yet. Battery is
+voltage, not a charge percentage. `DEW F`/`DEW C` identifies dew-point units.
+AQI bands are `GOOD`, `MOD`, `USG` (sensitive groups), `UNH`, `VUNH`, and `HAZ`.
+`WAIT` means insufficient history; `OFF` means current PM is unavailable. The
+Measurements page retains full category names and reasons. Home shows `999+`
+above 999; Measurements retains the full estimate.
+
 The default ring holds 10,080 one-minute slots in an 80,640-byte numeric payload.
 Missed samples remain gaps. Graphs preserve each column's minimum and maximum;
 stored measurements have 0.1-unit precision.
@@ -80,7 +100,8 @@ python tools/device_files.py deploy --drive I:/ --backup-dir ../device-backups -
 ```
 
 The helper makes a verified backup, enters exclusive editing mode, copies all
-14 application files with `code.py` last, flushes each file, verifies SHA-256
+14 application files and three font/license assets with `code.py` last, flushes each file,
+verifies SHA-256
 on the host and CRC32 through the MCU, and restarts logging. Failed flushes or
 MCU readback stop the upload before the final reset. Without `--port`, use the
 operating system's safe-eject action before manually resetting or unplugging.

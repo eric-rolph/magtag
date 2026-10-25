@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.1.0 — 2026-10-25
+
+- Implement the Instrument home screen with large League Spartan numeric type,
+  two bounded twelve-hour plots, and a humidity/dew-point/pressure/AQI strip.
+- Retain sensor ages, battery voltage, all navigation, alerts, and setting feedback.
+- Fit long values by measured glyph width; show missing readings explicitly and
+  use the built-in font if optional typography assets cannot load.
+- Reuse existing sample and refresh scheduling; preserve plot peaks and empty buckets.
+- Include font assets and their license in verified USB deployments.
+- Validate all pages, extreme/missing values, AQI states, startup plots, idle
+  redraw behavior, and font fallback; preview the actual numeric font pixels.
+
 ## 4.0.3 — 2026-10-24
 
 - Guard application imports and runtime failures: preserve a bounded last-crash

@@ -40,6 +40,12 @@ APP_FILES = (
     "code.py",
 )
 
+FONT_FILES = (
+    "fonts/leaguespartan18.bdf",
+    "fonts/leaguespartan11.bdf",
+    "fonts/leaguespartan.license",
+)
+
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -332,7 +338,7 @@ def main():
     if source_root == drive or drive in source_root.parents:
         raise SystemExit("Source must be a local project or backup, outside the device")
     files = (
-        [source_root / name for name in APP_FILES]
+        [source_root / name for name in APP_FILES + FONT_FILES]
         if args.action == "deploy"
         else inventory(source_root)
     )

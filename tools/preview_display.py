@@ -10,7 +10,7 @@ PROJECT = Path(__file__).resolve().parents[1]
 if str(PROJECT) not in sys.path:
     sys.path.insert(0, str(PROJECT))
 
-from tools.display_stubs import FakeDisplay, Group, Label, TileGrid, install  # noqa: E402
+from tools.display_stubs import BDFFont, FakeDisplay, Group, Label, TileGrid, install  # noqa: E402
 from PIL import Image, ImageDraw, ImageFont  # noqa: E402
 
 
@@ -37,7 +37,9 @@ def rgb(value):
 
 def desktop_font():
     """Find a compact monospace font without requiring a Windows installation."""
-    for name in ("C:/Windows/Fonts/cour.ttf", "DejaVuSansMono.ttf", "LiberationMono-Regular.ttf"):
+    for name in (
+        "C:/Windows/Fonts/consola.ttf", "DejaVuSansMono.ttf", "LiberationMono-Regular.ttf"
+    ):
         try:
             return ImageFont.truetype(name, 10)
         except OSError:
@@ -64,6 +66,25 @@ def render_screen(view, font):
                         fill=rgb(item.pixel_shader[pixel]),
                     )
         elif isinstance(item, Label) and item.text:
+            numeric_font = getattr(item.font, "source_font", item.font)
+            if isinstance(numeric_font, BDFFont):
+                _, by, _, _ = item.bounding_box
+                label_scale = scale * item.scale
+                baseline = y + (item.font.ascent + by) * label_scale
+                cursor = x
+                for char in item.text:
+                    g = numeric_font.glyphs[char]
+                    for gy, row in enumerate(g["rows"]):
+                        for gx in range(g["w"]):
+                            if row & (1 << (g["w"] - gx - 1)):
+                                px = cursor + (g["x"] + gx) * label_scale
+                                py = baseline + (gy - g["h"] - g["y"]) * label_scale
+                                draw.rectangle(
+                                    (px, py, px + label_scale - 1, py + label_scale - 1),
+                                    fill=rgb(item.color),
+                                )
+                    cursor += g["advance"] * label_scale
+                continue
             mask = Image.new("RGBA", (max(1, len(item.text) * 6), 12), (255, 255, 255, 0))
             ImageDraw.Draw(mask).text(
                 (0, -1), item.text, fill=rgb(getattr(item, "color", 0)), font=font
@@ -74,6 +95,9 @@ def render_screen(view, font):
                     (mask.width * label_scale, mask.height * label_scale),
                     resample=Image.Resampling.NEAREST,
                 )
+            if hasattr(item, "anchored_position"):
+                ax, ay = item.anchored_position
+                x, y = offset_x + ax * scale, offset_y + ay * scale - mask.height // 2
             screen.paste(mask, (x, y - mask.height // 2), mask)
     return screen
 
