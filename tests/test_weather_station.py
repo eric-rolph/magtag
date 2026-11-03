@@ -182,6 +182,7 @@ def test_short_d_cycles_all_pages_without_cpython_string_helpers():
 
 def test_c_short_release_changes_brightness_and_long_hold_changes_units_once():
     station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.update_battery = lambda *_, **__: None
     station.controls = UIController()
     calls = []
     peripherals = SimpleNamespace(
@@ -228,6 +229,7 @@ def test_watchdog_is_fed_only_after_successful_tick():
     import pytest
 
     station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.update_battery = lambda *_, **__: None
     calls = []
     station.check_buttons = lambda *_: calls.append("buttons")
     station.sensors = SimpleNamespace(service_retries=lambda *_: calls.append("retry"))
@@ -261,6 +263,7 @@ def test_editing_mode_never_writes_checkpoints():
 
 def test_tick_services_inputs_and_sampling_before_one_storage_step():
     station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.update_battery = lambda *_, **__: None
     station.config = config
     station.editing = False
     station.controls = SimpleNamespace(rendered=lambda: None)
@@ -301,3 +304,54 @@ def test_checkpoint_starts_one_job_and_preserves_dirty_preferences_until_later()
     station.checkpoint(100)
     assert calls == ["start", "step"]
     assert station._preferences_dirty
+
+
+def test_battery_poll_handles_adc_error_and_usb_reconnection(monkeypatch):
+    from weather_battery import BatteryEstimate
+
+    station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.battery = BatteryEstimate(config.BATTERY_CAPACITY_MAH, config.BATTERY_VOLTAGE_CURVE)
+    station._battery_due = 0
+    station.peripherals = SimpleNamespace(battery=3.85)
+    station.leds = SimpleNamespace(brightness_index=0)
+    rendered = []
+    station.display = SimpleNamespace(update_battery=rendered.append)
+    monkeypatch.setattr(weather_station, "usb_power", lambda: False)
+    station.battery.confirm(0,3.85,False)
+    station.update_battery(10)
+    assert rendered[-1][0] == "~60%"
+    monkeypatch.setattr(weather_station, "usb_power", lambda: True)
+    station.update_battery(20)
+    assert rendered[-1][0] == "USB" and station.battery.percent is None
+
+    class BadADC:
+        @property
+        def battery(self):
+            raise OSError("ADC failed")
+
+    station.peripherals = BadADC()
+    station.update_battery(30)
+    assert rendered[-1][0] == "BAT --"
+
+
+def test_hold_b_toggles_confirmation_without_changing_graph(monkeypatch):
+    from weather_battery import BatteryEstimate
+
+    station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.battery = BatteryEstimate(config.BATTERY_CAPACITY_MAH, config.BATTERY_VOLTAGE_CURVE)
+    station._battery_due = 0
+    station.peripherals = SimpleNamespace(battery=3.8, button_a_pressed=False,
+        button_b_pressed=False, button_c_pressed=False, button_d_pressed=False)
+    station.controls = SimpleNamespace(update=lambda *_: ["battery"])
+    station.leds = SimpleNamespace(brightness_index=0)
+    station.display = SimpleNamespace(update_battery=lambda *_: None, acknowledge=lambda *_: None)
+    station._update_sensor_labels = lambda: None
+    station._update_details = lambda *_: None
+    monkeypatch.setattr(weather_station,"usb_power",lambda: False)
+    station.check_buttons(0)
+    assert station.battery.confirmed
+    station.check_buttons(10)
+    assert not station.battery.confirmed
+    monkeypatch.setattr(weather_station,"usb_power",lambda: True)
+    station.check_buttons(20)
+    assert not station.battery.confirmed

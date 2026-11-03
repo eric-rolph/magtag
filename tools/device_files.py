@@ -24,6 +24,7 @@ import zlib
 
 
 APP_FILES = (
+    "weather_battery.py",
     "weather_config.py",
     "weather_settings.py",
     "weather_core.py",

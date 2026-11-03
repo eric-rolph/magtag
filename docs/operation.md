@@ -2,6 +2,10 @@
 
 ## Power and USB
 
+Version 4.2.0 adds approximate battery percentage and discharge-trend runtime.
+Read [battery operation](battery.md) for the Hold B confirmation procedure,
+external-charger limitation, learning requirements and accuracy limits.
+
 The application needs no desktop process or network connection. Use a charged
 battery or suitable independent power supply. See the MagTag
 [power connections](https://learn.adafruit.com/adafruit-magtag/pinouts).
@@ -48,8 +52,10 @@ They are redrawn on a sample or navigation change, never on idle ticks. The
 existing sample cadence and e-paper cooldown are unchanged.
 
 Header `B:` and `P:` show the ages of the last successful BME280 and PM readings
-at the most recent refresh. `--` means no successful reading yet. Battery is
-voltage, not a charge percentage. `DEW F`/`DEW C` identifies dew-point units.
+at the most recent refresh. `--` means no successful reading yet. The corner
+shows approximate battery percentage only after manual battery-only confirmation;
+otherwise it shows USB, external, unknown or unavailable power status. Voltage
+and runtime are on Measurements. `DEW F`/`DEW C` identifies dew-point units.
 AQI bands are `GOOD`, `MOD`, `USG` (sensitive groups), `UNH`, `VUNH`, and `HAZ`.
 `WAIT` means insufficient history; `OFF` means current PM is unavailable. The
 Measurements page retains full category names and reasons. Home shows `999+`
@@ -100,7 +106,7 @@ python tools/device_files.py deploy --drive I:/ --backup-dir ../device-backups -
 ```
 
 The helper makes a verified backup, enters exclusive editing mode, copies all
-14 application files and three font/license assets with `code.py` last, flushes each file,
+15 application files and three font/license assets with `code.py` last, flushes each file,
 verifies SHA-256
 on the host and CRC32 through the MCU, and restarts logging. Failed flushes or
 MCU readback stop the upload before the final reset. Without `--port`, use the

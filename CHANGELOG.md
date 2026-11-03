@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.2.0 — 2026-11-03
+
+- Add approximate 5%-step battery percentage after manual battery-only confirmation
+  using Hold B; short B advances graph range on release.
+- Preserve voltage on Measurements and show runtime as Learning until sufficient
+  consistent discharge history exists. Bound learning memory and avoid extra writes.
+- Clear estimates on USB, elevated/rising voltage, bad measurements and timing gaps.
+- Configure the user's nominal 2200 mAh ICR 18650 and document generic-curve limits.
+- Desktop validation: 445 tests, Ruff and Python 3.7 syntax checks passed.
+- Installed and verified on CircuitPython 7.1.1: 18 files, 34 layout cases,
+  simulated learning/hold-B/USB tests, and normal sensor sampling passed.
+- This is not a calibrated fuel gauge and does not fix the earlier filesystem loss.
+
 ## 4.1.0 — 2026-10-25
 
 - Implement the Instrument home screen with large League Spartan numeric type,

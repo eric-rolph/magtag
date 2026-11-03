@@ -6,6 +6,7 @@ import json
 import time
 import weather_config as config
 from weather_alerts import AlertManager
+from weather_battery import BatteryEstimate, usb_power
 from weather_boot import editing_mode
 from weather_core import DataHistory, SamplingSchedule, ZambrettiForecaster
 from weather_hardware import LEDManager, SensorData
@@ -42,6 +43,9 @@ class WeatherStation:
         from weather_display import Display
 
         self.config = settings
+        self.battery = BatteryEstimate(
+            settings.BATTERY_CAPACITY_MAH, settings.BATTERY_VOLTAGE_CURVE)
+        self._battery_due = 0
         self.started_at = time.monotonic()
         self.editing = editing_mode()
         self.watchdog = WatchdogGuard(
@@ -98,7 +102,7 @@ class WeatherStation:
         self.reset_cause = reset_reason()
         self.watchdog.feed()
         print(
-            "MagTag weather station v4.1.0; Instrument; standalone; history payload:",
+            "MagTag weather station v4.2.0; Instrument; standalone; history payload:",
             self.history.storage_bytes,
             "bytes; reset",
             self.reset_cause,
@@ -139,6 +143,17 @@ class WeatherStation:
             self.sensors, self.trend, self.forecast, self.peripherals.battery
         )
 
+    def update_battery(self, now, force=False):
+        if not force and now < self._battery_due:
+            return
+        self._battery_due = now + 10
+        try:
+            voltage = self.peripherals.battery
+        except (OSError, RuntimeError, ValueError):
+            voltage = None
+        self.battery.update(now, voltage, usb_power(), self.leds.brightness_index)
+        self.display.update_battery(self.battery.text())
+
     def check_buttons(self, now):
         peripherals = self.peripherals
         pressed = (
@@ -164,8 +179,19 @@ class WeatherStation:
             elif action == "units":
                 self.display.toggle_temperature_unit()
                 message = "Temperature: " + self.display.temperature_unit
+            elif action == "battery":
+                self.update_battery(now, force=True)
+                if self.battery.confirmed:
+                    self.battery.clear()
+                    message = "Battery estimate off"
+                else:
+                    confirmed = self.battery.confirm(now, self.battery.voltage, usb_power())
+                    message = ("Battery-only confirmed; ~% is approximate" if confirmed
+                               else "Disconnect USB/charger before Hold B")
+                self.display.update_battery(self.battery.text())
             else:
                 self.leds.cycle_brightness()
+                self.update_battery(now, force=True)
                 brightness = self.leds.levels[self.leds.brightness_index]
                 message = (
                     "LEDs off"
@@ -309,6 +335,7 @@ class WeatherStation:
             self._diagnostics_due = now
 
     def tick(self, now):
+        self.update_battery(now)
         self.check_buttons(now)
         self.sensors.service_retries(now)
         self.update_readings(now)

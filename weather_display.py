@@ -53,6 +53,7 @@ class Display:
         self._sensors = None
         self._forecast = "Forecast: collecting 3h"
         self._battery_voltage = None
+        self._battery_text = None
         self._details = (None, None, None, {}, "Alerts: data pending", None)
         self._status = {}
         self._alert_text = ""
@@ -391,7 +392,8 @@ class Display:
         self._number(self.pressure, self._format(sensors.pressure if sensors else None),
                      148, 103, 76)
         self._put(
-            self.battery, self._format(self._battery_voltage) + "V" if self._battery_voltage else ""
+            self.battery, self._battery_text[0] if self._battery_text else (
+                self._format(self._battery_voltage) + "V" if self._battery_voltage else "")
         )
         estimate = self._details[3]
         aqi = estimate.get("aqi")
@@ -415,6 +417,16 @@ class Display:
         self._render_home()
         self._render_status()
         self.refresh_needed = True
+
+    def update_battery(self, text):
+        if text == self._battery_text:
+            return
+        header_changed = self._battery_text is None or text[0] != self._battery_text[0]
+        self._battery_text = text
+        self._render_home()
+        self._render_details()
+        if self.screen == "details" or (self.screen == "home" and header_changed):
+            self.refresh_needed = True
 
     def update_details(
         self, dew_c, pm_mean, pressure_delta, estimate, alerts, epoch, has_archive=False
@@ -478,7 +490,7 @@ class Display:
             + " / "
             + estimate.get("time_basis", "session"),
             self.home_age.text,
-            clock_text,
+            self._battery_text[1] if self._battery_text else clock_text,
         )
         for item, text in zip(self.details_labels, lines):
             self._put(item, text)

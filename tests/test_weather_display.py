@@ -25,6 +25,33 @@ def sensors(pm=12, temperature=68, pressure=1013, humidity=40):
     )
 
 
+@pytest.mark.parametrize("text", [
+    ("~100%", "Bat ~100% 4.20V | Left Learning"),
+    ("~5%", "Bat ~5% 3.40V | Left <1h"),
+    ("USB", "USB 4.10V | Hold B on battery"),
+    ("PWR ?", "PWR ? 4.10V | Hold B on battery"),
+    ("BAT --", "BAT -- --V | Hold B on battery"),
+    ("~50%", "Bat ~50% 3.80V | Left ~12h"),
+])
+def test_battery_header_and_details_fit_without_collisions(view, text):
+    context(view)
+    view.update_sensors(sensors(), "-", "Outlook: waiting", 4.1)
+    details(view)
+    view.update_battery(text)
+    assert view.battery.text == text[0]
+    assert view.details_labels[-1].text == text[1]
+    for screen in ("home", "details"):
+        show(view, screen)
+        assert_layout(view)
+
+
+def test_hidden_voltage_changes_do_not_trigger_home_panel_refresh(view):
+    view.update_battery(("USB", "USB 4.10V | Hold B on battery"))
+    view.refresh_needed = False
+    view.update_battery(("USB", "USB 4.11V | Hold B on battery"))
+    assert not view.refresh_needed
+
+
 def context(view, now=160, bme_state="ready", pm_state="ready"):
     view.set_context(
         now,

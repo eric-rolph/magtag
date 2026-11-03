@@ -3,6 +3,17 @@
 Baseline hardware measurements: October 9, 2026, Adafruit MagTag with
 CircuitPython 7.1.1. Desktop validation was repeated for 4.0.3 on October 24.
 
+## Battery estimates — November 3
+
+Version 4.2.0 passes 445 desktop tests, Ruff and the Python 3.7 syntax check.
+The connected CircuitPython 7.1.1 board passed 34 layout cases (including the
+new battery states), simulated discharge learning, USB detection and the Hold B
+gesture. No visible glyph overlap or clipping was found. All 18 application,
+font and license files passed host SHA-256 and independent MCU CRC32 readback.
+See validation.json for normal-operation observations and measured results.
+This does not calibrate the generic voltage curve or validate predicted runtime
+against a physical discharge. See [battery limitations](battery.md).
+
 ## Instrument dashboard — October 25
 
 Version 4.1.0 passes 413 desktop tests, Ruff, and the Python 3.7 source syntax check.
