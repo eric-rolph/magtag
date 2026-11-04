@@ -50,14 +50,14 @@ class SensorData:
                     try:
                         device = self._factories[1](self.i2c, address=address)
                         break
-                    except (OSError, RuntimeError, ValueError) as error:
+                    except (OSError, RuntimeError, ValueError, ArithmeticError) as error:
                         last_error = error
                 if device is None:
                     raise RuntimeError("BME280 not found: " + str(last_error))
             self._devices[index] = device
             self._errors[index] = 0
             return device
-        except (OSError, RuntimeError, ValueError) as error:
+        except (OSError, RuntimeError, ValueError, ArithmeticError) as error:
             self.total_errors[index] += 1
             self._report(index, "unavailable", error)
             return None
@@ -106,7 +106,9 @@ class SensorData:
                     raise ValueError("Invalid PM2.5 concentration")
                 self.pm = value
                 self._success(0, now)
-            except (OSError, RuntimeError, ValueError, TypeError, KeyError) as error:
+            except (
+                OSError, RuntimeError, ValueError, TypeError, KeyError, ArithmeticError
+            ) as error:
                 self._failed(0, now, error)
         bme = self._device(1, now)
         if bme is not None:
@@ -129,7 +131,7 @@ class SensorData:
                     else:
                         self.pressure_raw = value + self.config.PRESSURE_OFFSET_HPA
                     usable += 1
-                except (OSError, RuntimeError, ValueError, TypeError) as error:
+                except (OSError, RuntimeError, ValueError, TypeError, ArithmeticError) as error:
                     last_error = error
             self.pressure = sea_level_pressure(
                 self.pressure_raw, self.temperature_c, self.config.ELEVATION_M

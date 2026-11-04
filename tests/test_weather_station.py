@@ -52,6 +52,34 @@ def test_startup_without_credentials_or_networking(monkeypatch):
     assert not station.watchdog.enabled
 
 
+def test_watchdog_is_armed_before_hardware_initialization_can_stall(monkeypatch):
+    import pytest
+
+    calls = []
+    guard = SimpleNamespace(status="armed 30s", feed=lambda: calls.append("feed"))
+    monkeypatch.setattr(weather_station, "WatchdogGuard", lambda *args: calls.append("armed")
+                        or guard)
+    monkeypatch.setattr(weather_station, "editing_mode", lambda: False)
+    monkeypatch.setitem(sys.modules, "board", SimpleNamespace(SCL=1, SDA=2))
+    package = ModuleType("adafruit_magtag")
+    package.__path__ = []
+    monkeypatch.setitem(sys.modules, "adafruit_magtag", package)
+    monkeypatch.setitem(sys.modules, "adafruit_magtag.peripherals", SimpleNamespace(
+        Peripherals=lambda: calls.append("peripherals") or object(),
+    ))
+    monkeypatch.setitem(sys.modules, "weather_display", SimpleNamespace(Display=object))
+
+    def failing_bus(*args, **kwargs):
+        calls.append("bus")
+        raise OSError("bus failed during startup")
+
+    monkeypatch.setitem(sys.modules, "busio", SimpleNamespace(I2C=failing_bus))
+    with pytest.raises(OSError, match="bus failed"):
+        weather_station.WeatherStation()
+    assert calls[0] == "armed"
+    assert calls.index("armed") < calls.index("peripherals") < calls.index("bus")
+
+
 def test_station_delay_produces_one_real_read_and_visible_missing_slots(monkeypatch):
     clock = [0.0]
     monkeypatch.setattr(weather_station.time, "monotonic", lambda: clock[0])
@@ -154,6 +182,7 @@ def test_short_d_cycles_all_pages_without_cpython_string_helpers():
 
 def test_c_short_release_changes_brightness_and_long_hold_changes_units_once():
     station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.update_battery = lambda *_, **__: None
     station.controls = UIController()
     calls = []
     peripherals = SimpleNamespace(
@@ -200,6 +229,7 @@ def test_watchdog_is_fed_only_after_successful_tick():
     import pytest
 
     station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.update_battery = lambda *_, **__: None
     calls = []
     station.check_buttons = lambda *_: calls.append("buttons")
     station.sensors = SimpleNamespace(service_retries=lambda *_: calls.append("retry"))
@@ -233,6 +263,7 @@ def test_editing_mode_never_writes_checkpoints():
 
 def test_tick_services_inputs_and_sampling_before_one_storage_step():
     station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.update_battery = lambda *_, **__: None
     station.config = config
     station.editing = False
     station.controls = SimpleNamespace(rendered=lambda: None)
@@ -273,3 +304,31 @@ def test_checkpoint_starts_one_job_and_preserves_dirty_preferences_until_later()
     station.checkpoint(100)
     assert calls == ["start", "step"]
     assert station._preferences_dirty
+
+
+def test_battery_poll_handles_adc_error_and_usb_reconnection(monkeypatch):
+    from weather_battery import BatteryEstimate
+
+    station = weather_station.WeatherStation.__new__(weather_station.WeatherStation)
+    station.battery = BatteryEstimate(config.BATTERY_CAPACITY_MAH, config.BATTERY_VOLTAGE_CURVE)
+    station._battery_due = 0
+    station.peripherals = SimpleNamespace(battery=3.85)
+    station.leds = SimpleNamespace(brightness_index=0)
+    rendered = []
+    station.display = SimpleNamespace(update_battery=rendered.append)
+    monkeypatch.setattr(weather_station, "usb_power", lambda: False)
+    station.battery.update(-20,3.85,False)
+    station.update_battery(10)
+    assert rendered[-1][0] == "~60%"
+    monkeypatch.setattr(weather_station, "usb_power", lambda: True)
+    station.update_battery(20)
+    assert rendered[-1][0] == "USB" and station.battery.percent is None
+
+    class BadADC:
+        @property
+        def battery(self):
+            raise OSError("ADC failed")
+
+    station.peripherals = BadADC()
+    station.update_battery(30)
+    assert rendered[-1][0] == "BAT --"

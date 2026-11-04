@@ -4,6 +4,10 @@
 ELEVATION_M = 1609.0  # Preserves the original site's setting; verify for your location.
 TEMPERATURE_OFFSET_C = 0.0  # Apply a measured calibration, not an arbitrary correction.
 TEMPERATURE_UNIT = "F"  # "F" or "C"; calibration offsets are always Celsius.
+BATTERY_CAPACITY_MAH = 2200  # User's nominal 3.7V ICR 18650; not measured capacity.
+# Generic starting curve, NOT a calibration for this cell or its load/temperature.
+BATTERY_VOLTAGE_CURVE = ((3.0, 0), (3.4, 5), (3.6, 15), (3.7, 30),
+                         (3.8, 50), (3.9, 65), (4.0, 80), (4.1, 90), (4.2, 100))
 PRESSURE_OFFSET_HPA = 0.0
 BME280_ADDRESSES = (0x77, 0x76)
 READING_INTERVAL_SECONDS = 60
@@ -17,7 +21,8 @@ BUTTON_DEBOUNCE_SECONDS = 0.05
 POLL_INTERVAL_SECONDS = 0.02
 DEFAULT_GRAPH_HOURS = 12
 LED_BRIGHTNESS_INDEX = 0  # Start with LEDs powered off for standalone battery operation.
-LED_BRIGHTNESS_LEVELS = (0.0, 0.12, 0.25, 0.38, 0.50, 0.62, 0.75, 1.0)
+# Same number of levels preserves saved indices. First lit step is now 2%.
+LED_BRIGHTNESS_LEVELS = (0.0, 0.02, 0.05, 0.12, 0.25, 0.50, 0.75, 1.0)
 RESOLUTION_HOURS = (1, 6, 12, 24, 72, 168)
 
 # Checkpoints require CircuitPython ownership of the filesystem. If the computer owns it,

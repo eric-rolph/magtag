@@ -19,7 +19,8 @@ def test_deploy_verifies_backup_and_preserves_device_credentials(tmp_path, monke
     device = fake_device(tmp_path)
     source = tmp_path / "project"
     source.mkdir()
-    for name in device_files.APP_FILES:
+    for name in device_files.APP_FILES + device_files.FONT_FILES:
+        (source / name).parent.mkdir(parents=True, exist_ok=True)
         (source / name).write_text("new " + name)
     backups = tmp_path / "backups"
     monkeypatch.setattr(
@@ -101,7 +102,8 @@ def configure_arguments(monkeypatch, device, source, backups, action="deploy", p
 def new_project(tmp_path):
     source = tmp_path / "project"
     source.mkdir()
-    for name in device_files.APP_FILES:
+    for name in device_files.APP_FILES + device_files.FONT_FILES:
+        (source / name).parent.mkdir(parents=True, exist_ok=True)
         (source / name).write_text("new " + name)
     return source
 
@@ -210,9 +212,12 @@ def test_entry_point_is_copied_after_all_dependencies_and_boot(tmp_path, monkeyp
         return real_copy(original, destination)
 
     monkeypatch.setattr(device_files.shutil, "copy2", tracked_copy)
-    device_files.copy_verified(list(source.iterdir())[::-1], source, device)
+    device_files.copy_verified(device_files.inventory(source)[::-1], source, device)
     assert copied[-2:] == ["boot.py", "code.py"]
-    assert set(copied[:-2]) == set(device_files.APP_FILES) - {"boot.py", "code.py"}
+    assert set(copied[:-2]) == (
+        set(device_files.APP_FILES) - {"boot.py", "code.py"}
+        | {Path(name).name for name in device_files.FONT_FILES}
+    )
 
 
 def test_serial_standalone_update_pauses_before_backup_and_uses_hardware_resets(
@@ -273,13 +278,16 @@ def test_serial_standalone_update_pauses_before_backup_and_uses_hardware_resets(
     monkeypatch.setattr(device_files, "backup_device", backup)
     monkeypatch.setattr(device_files, "copy_verified", copy)
     monkeypatch.setattr(
+        device_files, "verify_on_device", lambda *args: events.append("MCU verify")
+    )
+    monkeypatch.setattr(
         device_files, "drain", lambda port, seconds: "Weather storage: device logging"
     )
     configure_arguments(monkeypatch, device, source, backups, port="COM3")
     device_files.main()
     assert events == [
         "pause", "mode", "request edit", "hard reset", "reconnect paused", "mode",
-        "backup", "copy", "hard reset",
+        "backup", "copy", "MCU verify", "hard reset",
     ]
     assert (next(backups.iterdir()) / "project" / "code.py").read_text() == "original code"
 
@@ -380,3 +388,71 @@ def test_pause_gives_up_on_unresponsive_device_within_deadline(monkeypatch):
         device_files.pause_device(port, timeout_seconds=5)
     assert len(commands) == 2
     assert clock[0] <= 5
+
+
+def test_every_copied_file_is_flushed_before_hash_verification(tmp_path, monkeypatch):
+    source = new_project(tmp_path)
+    device = fake_device(tmp_path)
+    events = []
+    original_digest = device_files.digest
+    original_fsync = device_files.os.fsync
+
+    def flushed(fd):
+        original_fsync(fd)
+        events.append("flush")
+
+    def hashed(path):
+        events.append("hash")
+        return original_digest(path)
+
+    monkeypatch.setattr(device_files.os, "fsync", flushed)
+    monkeypatch.setattr(device_files, "digest", hashed)
+    device_files.copy_verified([source / "code.py"], source, device)
+    assert events == ["flush", "hash", "hash"]
+
+
+def test_flush_failure_stops_copy_before_hash_or_reset(tmp_path, monkeypatch):
+    source = new_project(tmp_path)
+    device = fake_device(tmp_path)
+
+    def failed_flush(_):
+        raise OSError("USB flush failed")
+
+    monkeypatch.setattr(device_files.os, "fsync", failed_flush)
+    monkeypatch.setattr(device_files, "digest", lambda _: pytest.fail("Flush must finish first"))
+    with pytest.raises(OSError, match="USB flush failed"):
+        device_files.copy_verified([source / "code.py"], source, device)
+
+
+def test_mcu_readback_uses_exact_checksums_and_commands_fit_old_usb_buffer(tmp_path, monkeypatch):
+    source = new_project(tmp_path)
+    commands = []
+
+    def execute(port, text, marker, seconds=0.8):
+        assert len(("exec(" + repr(text) + ")\r\n").encode()) < 256
+        commands.append((text, marker))
+        return marker + "\n"
+
+    monkeypatch.setattr(device_files, "execute_repl", execute)
+    device_files.verify_on_device(object(), [source / "code.py"], source)
+    assert "'/code.py'" in commands[-1][0]
+    expected = device_files.zlib.crc32((source / "code.py").read_bytes()) & 0xFFFFFFFF
+    assert commands[-1][1] == "WEATHER_CRC=" + str(expected)
+
+
+def test_failed_mcu_readback_blocks_final_reset(tmp_path, monkeypatch):
+    device = standalone_device(tmp_path, editing=True)
+    source = new_project(tmp_path)
+    port = SimpleNamespace(close=lambda: None)
+    monkeypatch.setitem(sys.modules, "serial", SimpleNamespace(Serial=lambda *a, **k: port))
+    monkeypatch.setattr(device_files, "pause_device", lambda _: None)
+    monkeypatch.setattr(device_files, "editing_mode", lambda _: True)
+    monkeypatch.setattr(device_files, "hard_reset", lambda _: pytest.fail("Must not reset"))
+
+    def failed_readback(*_):
+        raise RuntimeError("MCU hash mismatch")
+
+    monkeypatch.setattr(device_files, "verify_on_device", failed_readback)
+    configure_arguments(monkeypatch, device, source, tmp_path / "backups", port="COM3")
+    with pytest.raises(SystemExit, match="MCU hash mismatch"):
+        device_files.main()

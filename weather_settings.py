@@ -45,6 +45,20 @@ def validate_config(config):
         errors.append('TEMPERATURE_UNIT must be "C" or "F".')
 
     interval = number("READING_INTERVAL_SECONDS", positive=True)
+    number("BATTERY_CAPACITY_MAH", positive=True)
+    curve = getattr(config, "BATTERY_VOLTAGE_CURVE", None)
+    valid_curve = isinstance(curve, (tuple, list)) and 2 <= len(curve) <= 32
+    if valid_curve:
+        valid_curve = all(isinstance(p, (tuple, list)) and len(p) == 2
+                          and all(_finite_number(v) for v in p)
+                          and 2.5 <= p[0] <= 4.22 and 0 <= p[1] <= 100 for p in curve)
+    if valid_curve:
+        valid_curve = (curve[0][1] == 0 and curve[-1][1] == 100 and all(
+            curve[i][0] > curve[i-1][0] and curve[i][1] > curve[i-1][1]
+            for i in range(1, len(curve))))
+    if not valid_curve:
+        errors.append(
+            "BATTERY_VOLTAGE_CURVE needs increasing voltage/percent pairs from 0 to 100%.")
     if interval is not None and not 1 <= interval <= 3600:
         errors.append("READING_INTERVAL_SECONDS must be between 1 and 3600.")
     capacity = number("HISTORY_SAMPLES", positive=True, integer=True)

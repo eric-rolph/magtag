@@ -6,6 +6,7 @@ import json
 import time
 import weather_config as config
 from weather_alerts import AlertManager
+from weather_battery import BatteryEstimate, usb_power
 from weather_boot import editing_mode
 from weather_core import DataHistory, SamplingSchedule, ZambrettiForecaster
 from weather_hardware import LEDManager, SensorData
@@ -42,16 +43,25 @@ class WeatherStation:
         from weather_display import Display
 
         self.config = settings
+        self.battery = BatteryEstimate(
+            settings.BATTERY_CAPACITY_MAH, settings.BATTERY_VOLTAGE_CURVE)
+        self._battery_due = 0
         self.started_at = time.monotonic()
         self.editing = editing_mode()
+        self.watchdog = WatchdogGuard(
+            settings.WATCHDOG_ENABLED, settings.WATCHDOG_TIMEOUT_SECONDS, self.editing
+        )
         # The legacy MagTag wrapper constructs networking and requires secrets.py.
         # This station only needs the board's display and local peripherals.
         self.peripherals = Peripherals()
+        self.watchdog.feed()
         self.i2c = busio.I2C(board.SCL, board.SDA, frequency=100_000)
         self.sensors = SensorData(self.i2c, settings)
+        self.watchdog.feed()
         self.forecaster = ZambrettiForecaster()
         self.controls = UIController(debounce_seconds=settings.BUTTON_DEBOUNCE_SECONDS)
         self.display = Display(board.DISPLAY, settings)
+        self.watchdog.feed()
         self.leds = LEDManager(
             self.peripherals, settings.LED_BRIGHTNESS_LEVELS, settings.LED_BRIGHTNESS_INDEX
         )
@@ -60,6 +70,7 @@ class WeatherStation:
             settings.CHECKPOINT_DIRECTORY,
             settings.HISTORY_SAMPLES,
             settings.READING_INTERVAL_SECONDS,
+            progress_callback=self.watchdog.feed,
         )
         self.archive = None
         self.restore_info = None
@@ -89,14 +100,13 @@ class WeatherStation:
         self._checkpoint_due = now + 30
         self._diagnostics_due = now
         self.reset_cause = reset_reason()
-        self.watchdog = WatchdogGuard(
-            settings.WATCHDOG_ENABLED, settings.WATCHDOG_TIMEOUT_SECONDS, self.editing
-        )
-        self.store.progress_callback = self.watchdog.feed
+        self.watchdog.feed()
         print(
-            "MagTag weather station v4.0.2; standalone; history payload:",
+            "MagTag weather station v4.2.2; Instrument; standalone; history payload:",
             self.history.storage_bytes,
-            "bytes; watchdog",
+            "bytes; reset",
+            self.reset_cause,
+            "; watchdog",
             self.watchdog.status,
         )
 
@@ -133,6 +143,17 @@ class WeatherStation:
             self.sensors, self.trend, self.forecast, self.peripherals.battery
         )
 
+    def update_battery(self, now, force=False):
+        if not force and now < self._battery_due:
+            return
+        self._battery_due = now + 10
+        try:
+            voltage = self.peripherals.battery
+        except (OSError, RuntimeError, ValueError):
+            voltage = None
+        self.battery.update(now, voltage, usb_power(), self.leds.brightness_index)
+        self.display.update_battery(self.battery.text())
+
     def check_buttons(self, now):
         peripherals = self.peripherals
         pressed = (
@@ -160,6 +181,7 @@ class WeatherStation:
                 message = "Temperature: " + self.display.temperature_unit
             else:
                 self.leds.cycle_brightness()
+                self.update_battery(now, force=True)
                 brightness = self.leds.levels[self.leds.brightness_index]
                 message = (
                     "LEDs off"
@@ -303,6 +325,7 @@ class WeatherStation:
             self._diagnostics_due = now
 
     def tick(self, now):
+        self.update_battery(now)
         self.check_buttons(now)
         self.sensors.service_retries(now)
         self.update_readings(now)

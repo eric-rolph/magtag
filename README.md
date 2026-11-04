@@ -6,8 +6,12 @@ display. Runs without a computer, Wi-Fi, or cloud account when powered separatel
 
 ## Features
 
-- **Home dashboard:** large temperature and PM2.5 readings, humidity, pressure,
-  estimated AQI, and sensor reading ages.
+- **Instrument dashboard:** large bitmap-font temperature and PM2.5 readings,
+  two twelve-hour trends, humidity, dew point, pressure, estimated AQI, sensor
+  reading ages, and power status on one screen; voltage on Measurements.
+- **Battery estimates:** automatic approximate percentage and a
+  conservative discharge-trend runtime estimate for the 2200 mAh ICR 18650.
+  See [battery operation and limitations](docs/battery.md) for source-detection limitations.
 - **Seven-day history:** one-minute readings, six graph ranges from 1 hour to
   1 week, visible data gaps, and peak-preserving plots.
 - **Weather measurements:** Fahrenheit/Celsius, dew point, five-minute PM2.5
@@ -20,9 +24,12 @@ display. Runs without a computer, Wi-Fi, or cloud account when powered separatel
   and a high-contrast alert banner visible with LEDs off.
 - **Sensor recovery:** independent retries, diagnostics, a watchdog, and
   background save steps that keep servicing controls.
+- **Crash recovery:** guarded startup/runtime, a bounded last-crash report, and
+  recovery from a persistently busy or failing display.
 
 [View the twelve-screen UI preview](display-preview.png).
-It uses synthetic readings and a desktop font approximation.
+It uses synthetic readings, the supplied numeric font pixels, and an approximation
+of the built-in terminal font.
 
 ## Hardware and installation
 
@@ -35,10 +42,10 @@ It uses synthetic readings and a desktop font approximation.
 1. Install CircuitPython on the MagTag. For an existing working 7.1.1 setup,
    keep its compatible `lib/` directory.
 2. Install `adafruit_magtag`, `adafruit_bme280`, `adafruit_pm25`,
-   `adafruit_display_text`, and their dependencies from the matching
+   `adafruit_display_text`, `adafruit_bitmap_font`, and their dependencies from the matching
    [Adafruit library bundle](https://github.com/adafruit/Adafruit_CircuitPython_Bundle).
    Firmware-compatible compiled libraries are not vendored here.
-3. Copy `code.py`, `boot.py`, and every `weather_*.py` file to `CIRCUITPY`.
+3. Copy `code.py`, `boot.py`, every `weather_*.py` file, and `fonts/` to `CIRCUITPY`.
    On an existing installation, hold **D during reset** first to enter editing mode.
 4. Set your elevation and calibration in [weather_config.py](weather_config.py).
    Reset with D released to start normal device logging.
@@ -57,7 +64,8 @@ read-only drive. Hold D during reset to edit over USB. LEDs default off.
 
 ## Validation and development
 
-**376 desktop tests and 63 on-board calculation checks passed.** A 21-day software
+**444 desktop tests passed for v4.2.1.** Previous hardware validation included
+63 on-board calculation checks. A 21-day software
 replay checks outages, buffer wrap, alerts, and restart recovery. An on-board test
 saved and restored all 10,080 samples; the longest save step measured 0.732 seconds.
 See [validation notes](docs/validation.md) for scope and limits.
@@ -72,3 +80,6 @@ Use Python 3.10+ for desktop tools. Device source retains Python 3.7 syntax.
 
 [Operation and deployment](docs/operation.md) · [Changelog](CHANGELOG.md) ·
 [MIT license](LICENSE)
+
+The unmodified League Spartan bitmap fonts retain their separate
+[SIL Open Font License](fonts/leaguespartan.license).
