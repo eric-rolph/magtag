@@ -22,8 +22,8 @@ def main():
     states = (
         ("Battery / learning", ("~75%", "Bat ~75% 3.97V | Left Learning")),
         ("Battery / trend available", ("~50%", "Bat ~50% 3.80V | Left ~6h")),
-        ("Power source unconfirmed", ("PWR ?", "PWR ? 4.10V | Hold B on battery")),
-        ("USB connected", ("USB", "USB 4.10V | Hold B on battery")),
+        ("Power source unconfirmed", ("PWR ?", "PWR ? 4.10V | Voltage rising")),
+        ("USB connected", ("USB", "USB 4.10V | External power")),
     )
     sheet = Image.new("RGB", (620, 660), "#e9edf1")
     draw = ImageDraw.Draw(sheet)

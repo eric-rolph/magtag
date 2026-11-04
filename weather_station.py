@@ -102,7 +102,7 @@ class WeatherStation:
         self.reset_cause = reset_reason()
         self.watchdog.feed()
         print(
-            "MagTag weather station v4.2.0; Instrument; standalone; history payload:",
+            "MagTag weather station v4.2.1; Instrument; standalone; history payload:",
             self.history.storage_bytes,
             "bytes; reset",
             self.reset_cause,
@@ -179,16 +179,6 @@ class WeatherStation:
             elif action == "units":
                 self.display.toggle_temperature_unit()
                 message = "Temperature: " + self.display.temperature_unit
-            elif action == "battery":
-                self.update_battery(now, force=True)
-                if self.battery.confirmed:
-                    self.battery.clear()
-                    message = "Battery estimate off"
-                else:
-                    confirmed = self.battery.confirm(now, self.battery.voltage, usb_power())
-                    message = ("Battery-only confirmed; ~% is approximate" if confirmed
-                               else "Disconnect USB/charger before Hold B")
-                self.display.update_battery(self.battery.text())
             else:
                 self.leds.cycle_brightness()
                 self.update_battery(now, force=True)

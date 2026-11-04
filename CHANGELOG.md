@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.2.1 — 2026-11-03
+
+- Remove manual battery confirmation. Infer battery operation from USB state,
+  a twenty-second settling period and voltage plausibility/trends.
+- Automatically suppress estimates on USB, high/rising voltage, invalid reads
+  and data gaps; resume after settling/discharge evidence as appropriate.
+- Restore original B graph control and remove all Hold B battery prompts.
+- Source detection is an inference: weak charger inputs can resemble a battery.
+- Desktop validation: 444 tests, Ruff and Python 3.7 syntax checks passed.
+- Installed on the MagTag: three modules verified, 34 layout cases plus
+  automatic recovery and original B simulations passed; normal sampling resumed.
+
 ## 4.2.0 — 2026-11-03
 
 - Add approximate 5%-step battery percentage after manual battery-only confirmation

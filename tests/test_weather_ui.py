@@ -107,15 +107,3 @@ def test_dew_status_distinguishes_missing_humidity_zero_and_estimate_range():
     sensors.humidity = 40
     messages = status_messages(history, sensors, estimate, config, 5, 0, None)
     assert messages["dew_reason"] == "Dew: outside estimate range"
-
-
-def test_hold_b_confirms_battery_without_changing_graph_range():
-    controller = UIController()
-    state = [False, True, False, False]
-    assert controller.update(state, 0) == []
-    assert controller.update(state, .06) == []
-    assert controller.update(state, 1.3) == ["battery"]
-    assert controller.update(state, 5) == []
-    assert controller.update([False]*4, 6) == []
-    assert controller.update([False]*4, 6.1) == []
-    assert press(controller, 1, 7) == ["range"]

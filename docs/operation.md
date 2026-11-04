@@ -2,8 +2,8 @@
 
 ## Power and USB
 
-Version 4.2.0 adds approximate battery percentage and discharge-trend runtime.
-Read [battery operation](battery.md) for the Hold B confirmation procedure,
+Version 4.2.1 adds approximate battery percentage and discharge-trend runtime.
+Read [battery operation](battery.md) for automatic power inference,
 external-charger limitation, learning requirements and accuracy limits.
 
 The application needs no desktop process or network connection. Use a charged
@@ -53,7 +53,7 @@ existing sample cadence and e-paper cooldown are unchanged.
 
 Header `B:` and `P:` show the ages of the last successful BME280 and PM readings
 at the most recent refresh. `--` means no successful reading yet. The corner
-shows approximate battery percentage only after manual battery-only confirmation;
+shows approximate battery percentage after automatically checking power;
 otherwise it shows USB, external, unknown or unavailable power status. Voltage
 and runtime are on Measurements. `DEW F`/`DEW C` identifies dew-point units.
 AQI bands are `GOOD`, `MOD`, `USG` (sensitive groups), `UNH`, `VUNH`, and `HAZ`.

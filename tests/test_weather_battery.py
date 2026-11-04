@@ -13,33 +13,39 @@ def battery():
 
 @pytest.mark.parametrize("usb,voltage", [(True, 4.1), (None, 4), (False, 4.4),
                                        (False, float("nan")), (False, None), (False, 2.9)])
-def test_confirmation_refuses_external_unknown_or_invalid_power(usb, voltage):
+def test_auto_refuses_external_unknown_or_invalid_power(usb, voltage):
     b = battery()
-    assert not b.confirm(0, voltage, usb)
+    for now in (0,10,20,30):
+        b.update(now,voltage,usb)
     assert b.percent is None and b.hours is None
 
 
-def test_no_automatic_battery_assumption_and_percentage_is_rounded():
+def test_automatic_estimate_after_settling_and_usb_return():
     b = battery()
     b.update(0, 3.85, False)
-    assert b.percent is None and b.text()[0] == "PWR ?"
-    assert b.confirm(1, 3.85, False)
+    assert b.percent is None and b.text()[0] == "AUTO"
+    b.update(10,3.85,False)
+    assert b.percent is None
+    b.update(20,3.85,False)
     assert b.text()[0] == "~60%"
     assert "Learning" in b.text()[1]
-    b.update(2, 3.85, True)
-    assert b.text()[0] == "USB" and not b.confirmed
-    b.update(3, 3.85, False)
-    assert b.text()[0] == "PWR ?" and not b.confirmed
+    b.update(30, 3.85, True)
+    assert b.text()[0] == "USB" and not b._active
+    b.update(40, 3.85, False)
+    assert b.text()[0] == "AUTO" and not b._active
+    b.update(60,3.85,False)
+    assert b.percent is not None
 
 
-@pytest.mark.parametrize("now,voltage,usb", [(10,4.4,False), (10,3.9,False),
-                                          (10,3.8,True), (10,None,False),
-                                          (121,3.8,False), (-1,3.8,False)])
+@pytest.mark.parametrize("now,voltage,usb", [(30,4.4,False), (30,3.9,False),
+                                          (30,3.8,True), (30,None,False),
+                                          (141,3.8,False), (-1,3.8,False)])
 def test_estimates_cleared_on_rise_power_change_invalid_read_or_gap(now, voltage, usb):
     b = battery()
-    b.confirm(0,3.8,False)
+    b.update(0,3.8,False)
+    b.update(20,3.8,False)
     b.update(now,voltage,usb)
-    assert not b.confirmed and b.percent is None and b.hours is None
+    assert not b._active and b.percent is None and b.hours is None
 
 
 def discharge(b, end, drop_per_hour=.05, load=0):
@@ -49,12 +55,11 @@ def discharge(b, end, drop_per_hour=.05, load=0):
 
 def test_runtime_requires_two_hours_and_consistent_meaningful_drop():
     b = battery()
-    b.confirm(0,4.1,False)
     discharge(b,7200)
     assert b.hours is None  # Five minute settling period precedes learning.
-    discharge(b,10800)  # Time reversal must discard the old confirmation.
-    assert not b.confirmed
-    b.confirm(0,4.1,False)
+    b.update(-1,4.1,False)
+    assert b.hours is None and b.percent is None
+    b = battery()
     discharge(b,10800)
     assert b.hours is not None and 5 < b.hours < 15
     b.update(10860,3.95,False,1)
@@ -63,10 +68,23 @@ def test_runtime_requires_two_hours_and_consistent_meaningful_drop():
 
 def test_flat_voltage_never_generates_runtime_and_memory_is_bounded():
     b = battery()
-    b.confirm(0,4,False)
     for now in range(0,86401,60):
         b.update(now,4,False,0)
     assert b.hours is None and len(b._points) <= 49
+
+
+def test_rising_voltage_waits_for_a_drop_before_automatic_recovery():
+    b = battery()
+    b.update(0,3.8,False)
+    b.update(20,3.8,False)
+    b.update(30,3.9,False)
+    for now in range(40,1000,10):
+        b.update(now,3.9,False)
+        assert b.percent is None
+    b.update(1000,3.87,False)
+    assert b.text()[0] == "AUTO"
+    b.update(1020,3.87,False)
+    assert b.percent is not None and b.hours is None
 
 
 def test_usb_detection_fails_closed(monkeypatch):

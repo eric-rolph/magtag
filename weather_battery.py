@@ -5,7 +5,7 @@ import math
 
 
 def usb_power():
-    """Unknown USB state must never be treated as confirmed battery operation."""
+    """Unknown USB state must never enable a battery estimate."""
     try:
         import supervisor
 
@@ -21,31 +21,24 @@ class BatteryEstimate:
         self.voltage = None
         self.percent = None
         self.hours = None
-        self.confirmed = False
+        self._active = False
         self.state = "unknown"
         self._points = []
         self._last = None
         self._low = None
         self._load = None
         self._settle_until = 0
+        self._candidate_since = None
+        self._rise_peak = None
 
     def clear(self, state="unknown"):
-        self.confirmed = False
+        self._active = False
         self.percent = self.hours = None
         self._points = []
         self._low = None
         self.state = state
-
-    def confirm(self, now, voltage, usb):
-        self.clear()
-        self.update(now, voltage, usb)
-        if usb is not False or self.voltage is None or not 3.0 <= voltage <= 4.22:
-            return False
-        self.confirmed = True
-        self._low = voltage
-        self._settle_until = now + 300
-        self.update(now, voltage, usb)
-        return True
+        self._candidate_since = None
+        self._rise_peak = None
 
     def _percentage(self, voltage):
         if voltage <= self.curve[0][0]:
@@ -66,16 +59,33 @@ class BatteryEstimate:
         self._last = now
         if not valid:
             self.clear("unavailable")
+            return
         elif usb is not False:
             self.clear("usb" if usb else "unknown")
+            return
         elif voltage > 4.22:
             self.clear("external")
-        elif self.confirmed and self._low is not None and voltage > self._low + 0.06:
-            self.clear("rising")
-        elif not self.confirmed:
-            self.state = "unknown"
-        if not self.confirmed:
             return
+        elif voltage < 3.0:
+            self.clear("low")
+            return
+        elif self._low is not None and voltage > self._low + 0.06:
+            self.clear("rising")
+            self._rise_peak = voltage
+        if self._rise_peak is not None:
+            self._rise_peak = max(self._rise_peak, voltage)
+            if voltage > self._rise_peak - 0.02:
+                return  # Wait for discharge evidence after apparent charging/rebound.
+            self.clear()
+        if not self._active:
+            self.state = "checking"
+            if self._candidate_since is None:
+                self._candidate_since = now
+                self._low = voltage
+            if now - self._candidate_since < 20:
+                return
+            self._active = True
+            self._settle_until = now + 300
         self.state = "battery"
         self._low = voltage if self._low is None else min(self._low, voltage)
         self.percent = self._percentage(voltage)
@@ -110,9 +120,14 @@ class BatteryEstimate:
         volts = "{:.2f}V".format(self.voltage) if self.voltage is not None else "--V"
         if self.percent is None:
             captions = {"usb": "USB", "external": "EXT", "unavailable": "BAT --",
-                        "unknown": "PWR ?", "rising": "PWR ?"}
+                        "unknown": "PWR ?", "rising": "PWR ?", "checking": "AUTO",
+                        "low": "LOW"}
+            reasons = {"usb": "External power", "external": "External power",
+                       "unavailable": "Reading unavailable", "unknown": "Source unknown",
+                       "rising": "Voltage rising", "checking": "Checking power",
+                       "low": "Battery voltage low"}
             return (captions[self.state], captions[self.state] + " " + volts
-                    + " | Hold B on battery")
+                    + " | " + reasons[self.state])
         percent = int(self.percent / 5 + 0.5) * 5
         remaining = "Learning" if self.hours is None else "~{:.0f}h".format(self.hours)
         if self.hours is not None and self.hours < 1:

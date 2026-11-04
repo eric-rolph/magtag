@@ -1,5 +1,17 @@
 # Validation
 
+## Automatic battery estimates — November 3
+
+Version 4.2.1 removes manual confirmation and restores the original B control.
+444 desktop tests, Ruff and Python 3.7 syntax checks passed. On CircuitPython
+7.1.1, 34 layout cases, automatic activation/suppression/recovery simulations,
+USB detection, original B behavior and consecutive real sensor readings passed.
+All three changed modules passed host SHA-256 and MCU CRC32 verification;
+all 18 application/font/license files matched after testing.
+Power source is inferred from voltage and USB enumeration; weak charger inputs
+and power-only USB supplies remain ambiguous. No physical battery calibration
+has been performed. The older manual confirmation behavior below is superseded.
+
 Baseline hardware measurements: October 9, 2026, Adafruit MagTag with
 CircuitPython 7.1.1. Desktop validation was repeated for 4.0.3 on October 24.
 

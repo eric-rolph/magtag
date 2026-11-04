@@ -1,7 +1,7 @@
 {
-  "version": "4.2.0",
+  "version": "4.2.1",
   "date": "2026-11-03",
-  "desktop_tests_passed": 445,
+  "desktop_tests_passed": 444,
   "ruff": "passed",
   "device_source_python_37_syntax": "passed",
   "firmware": "CircuitPython 7.1.1",
@@ -148,5 +148,80 @@
       }
     ],
     "physical_battery_discharge_calibrated": false
+  },
+  "automatic_battery_validation": {
+    "free_after": 1766864,
+    "redraws": 40,
+    "cases": 34,
+    "failures": [],
+    "fonts_loaded": true,
+    "redraw_seconds": 22.45,
+    "passed": true,
+    "auto_recovery_passed": true,
+    "numeric_bounds": {
+      "pm": [
+        1,
+        -9,
+        50,
+        17
+      ],
+      "dew": [
+        1,
+        -6,
+        20,
+        11
+      ],
+      "pressure": [
+        0,
+        -6,
+        40,
+        11
+      ],
+      "humidity": [
+        0,
+        -6,
+        26,
+        11
+      ],
+      "temperature": [
+        1,
+        -9,
+        48,
+        17
+      ]
+    },
+    "original_b_control_passed": true,
+    "simulated_runtime_hours": 12.5353,
+    "free_before": 1766768,
+    "usb_detected": true,
+    "normal_samples": [
+      {
+        "temperature_c": 25.1432,
+        "humidity": 29.394,
+        "aqi_estimate": null,
+        "time_basis": "session",
+        "alerts": [],
+        "pm25": 0,
+        "pressure_hpa": 989.537,
+        "epoch": null,
+        "monotonic": 146.152
+      },
+      {
+        "temperature_c": 25.1686,
+        "humidity": 29.2692,
+        "aqi_estimate": null,
+        "time_basis": "session",
+        "alerts": [],
+        "pm25": 0,
+        "pressure_hpa": 989.502,
+        "epoch": null,
+        "monotonic": 206.151
+      }
+    ],
+    "normal_operation_passed": true,
+    "date": "2026-11-03",
+    "desktop_tests_passed": 444,
+    "changed_files_host_and_mcu_verified": 3,
+    "physical_discharge_calibrated": false
   }
 }

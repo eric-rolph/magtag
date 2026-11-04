@@ -8,7 +8,7 @@ from weather_core import ButtonTracker
 class UIController:
     """Keep at most one further navigation intent until the panel catches up.
 
-    B/C/D short actions occur on debounced release. Holding one for 1.2 seconds
+    C/D short actions occur on debounced release. Holding either for 1.2 seconds
     emits its long action once and suppresses the short action. Home takes
     priority over queued navigation. Sampling and persistence never wait here.
     """
@@ -16,8 +16,8 @@ class UIController:
     def __init__(self, debounce_seconds=0.05, hold_seconds=1.2):
         self.buttons = ButtonTracker(debounce_seconds=debounce_seconds)
         self.hold_seconds = hold_seconds
-        self._held_at = [None, None, None]
-        self._long_handled = [False, False, False]
+        self._held_at = [None, None]
+        self._long_handled = [False, False]
         self.navigation_inflight = False
         self.pending_navigation = None
 
@@ -41,13 +41,13 @@ class UIController:
             self._navigation(pending, actions)
         previous = tuple(self.buttons._stable)
         for button in self.buttons.update(pressed, now):
-            if button == 0:
-                self._navigation("metric", actions)
+            if button < 2:
+                self._navigation(("metric", "range")[button], actions)
             else:
-                index = button - 1
+                index = button - 2
                 self._held_at[index] = now
                 self._long_handled[index] = False
-        for index, button in enumerate((1, 2, 3)):
+        for index, button in enumerate((2, 3)):
             started = self._held_at[index]
             if started is None:
                 continue
@@ -59,16 +59,12 @@ class UIController:
             ):
                 self._long_handled[index] = True
                 if index == 0:
-                    actions.append("battery")
-                elif index == 1:
                     actions.append("units")
                 else:
                     self._navigation("home", actions, force=True)
             if previous[button] and not self.buttons._stable[button]:
                 if not self._long_handled[index]:
                     if index == 0:
-                        self._navigation("range", actions)
-                    elif index == 1:
                         actions.append("brightness")
                     else:
                         self._navigation("page", actions)

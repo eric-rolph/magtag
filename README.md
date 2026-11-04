@@ -9,9 +9,9 @@ display. Runs without a computer, Wi-Fi, or cloud account when powered separatel
 - **Instrument dashboard:** large bitmap-font temperature and PM2.5 readings,
   two twelve-hour trends, humidity, dew point, pressure, estimated AQI, sensor
   reading ages, and power status on one screen; voltage on Measurements.
-- **Battery estimates:** manually confirmed battery-only percentage and a
+- **Battery estimates:** automatic approximate percentage and a
   conservative discharge-trend runtime estimate for the 2200 mAh ICR 18650.
-  See [battery operation and limitations](docs/battery.md) before using Hold B.
+  See [battery operation and limitations](docs/battery.md) for source-detection limitations.
 - **Seven-day history:** one-minute readings, six graph ranges from 1 hour to
   1 week, visible data gaps, and peak-preserving plots.
 - **Weather measurements:** Fahrenheit/Celsius, dew point, five-minute PM2.5
@@ -59,13 +59,12 @@ read-only drive. Hold D during reset to edit over USB. LEDs default off.
 | --- | --- |
 | A | Open graphs / next metric |
 | B | Open graphs / next time range |
-| Hold B | Confirm battery-only operation / clear battery estimate |
 | C | LED brightness; hold 1.2 seconds for °F/°C |
 | D | Next page; hold 1.2 seconds for Home |
 
 ## Validation and development
 
-**445 desktop tests passed for v4.2.0.** Previous hardware validation included
+**444 desktop tests passed for v4.2.1.** Previous hardware validation included
 63 on-board calculation checks. A 21-day software
 replay checks outages, buffer wrap, alerts, and restart recovery. An on-board test
 saved and restored all 10,080 samples; the longest save step measured 0.732 seconds.
