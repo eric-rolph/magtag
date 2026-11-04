@@ -1,5 +1,5 @@
 {
-  "version": "4.2.1",
+  "version": "4.2.2",
   "date": "2026-11-03",
   "desktop_tests_passed": 444,
   "ruff": "passed",
@@ -223,5 +223,53 @@
     "desktop_tests_passed": 444,
     "changed_files_host_and_mcu_verified": 3,
     "physical_discharge_calibrated": false
+  },
+  "dim_led_and_charge_validation": {
+    "version": "4.2.2",
+    "date": "2026-11-03",
+    "desktop_tests_passed": 444,
+    "application_and_font_files_verified": 18,
+    "layout_cases_on_board": 34,
+    "layout_failures": [],
+    "led_levels_passed": true,
+    "restored_led_index": 1,
+    "restored_brightness": 0.02,
+    "normal_operation_passed": true,
+    "normal_samples": [
+      {
+        "temperature_c": 24.1889,
+        "humidity": 30.4464,
+        "aqi_estimate": null,
+        "time_basis": "session",
+        "alerts": [],
+        "pm25": 5,
+        "pressure_hpa": 990.076,
+        "epoch": null,
+        "monotonic": 148.402
+      },
+      {
+        "temperature_c": 24.2246,
+        "humidity": 30.4099,
+        "aqi_estimate": null,
+        "time_basis": "session",
+        "alerts": [],
+        "pm25": 5,
+        "pressure_hpa": 990.047,
+        "epoch": null,
+        "monotonic": 208.385
+      }
+    ],
+    "charging_observation": {
+      "duration_seconds": 291.48809375,
+      "samples": 30,
+      "median_voltage_min": 4.12597,
+      "median_voltage_max": 4.13997,
+      "delta_v": 0.009970000000000034,
+      "usb_detected_throughout": true,
+      "magtag_chg_led": "Steadily lit, reported by user",
+      "charger_inputs": "USB only to MagTag, reported by user",
+      "battery_current_measured": false,
+      "conclusion": "MagTag charger indicates active charging; voltage alone cannot prove cell current, completion or time to full."
+    }
   }
 }

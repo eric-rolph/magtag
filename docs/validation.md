@@ -1,5 +1,21 @@
 # Validation
 
+## Dim LEDs and charging observation - November 3
+
+Version 4.2.2 passes 444 desktop tests, Ruff and Python 3.7 syntax checks.
+All eight LED intensity/power states passed on CircuitPython 7.1.1; saved
+index 1 now restores 2% intensity. Off disables NeoPixel power. The board
+passed 34 display layout cases and resumed normal sensor sampling with the
+30-second watchdog. Three changed modules passed independent MCU CRC32
+readback; all 18 application/font/license files matched their host copies.
+
+During a five-minute USB-only observation, LOAD OUT stayed near 4.13 V.
+The user reported the MagTag yellow CHG LED steadily lit. This supports an
+active MagTag charger, but no cell-current measurement or completion signal
+is available to the program. No charging ETA or charge-complete claim is
+implemented. The display retains USB/EXT and says Charge unknown on
+Measurements. These tests do not measure whole-station power savings.
+
 ## Automatic battery estimates — November 3
 
 Version 4.2.1 removes manual confirmation and restores the original B control.

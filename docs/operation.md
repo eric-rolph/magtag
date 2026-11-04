@@ -37,6 +37,13 @@ calibration offsets default to zero. Units, sampling interval, history capacity,
 graph ranges, retry timers, brightness, persistence, and alert thresholds are
 configurable. Invalid settings produce startup errors.
 
+LED levels are off, 2%, 5%, 12%, 25%, 50%, 75%, and 100%. Tap C to cycle.
+Version 4.2.2 lowers the first lit level from 12% to 2%; saved brightness
+indices keep their positions. Off disables power to the four NeoPixels.
+The small green OK and yellow CHG indicators are hardware-controlled and are
+not dimmed by this setting. These percentages set LED intensity, not total
+station power consumption.
+
 ## History and estimates
 
 The Instrument home screen uses the supplied League Spartan bitmap fonts for

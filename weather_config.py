@@ -21,7 +21,8 @@ BUTTON_DEBOUNCE_SECONDS = 0.05
 POLL_INTERVAL_SECONDS = 0.02
 DEFAULT_GRAPH_HOURS = 12
 LED_BRIGHTNESS_INDEX = 0  # Start with LEDs powered off for standalone battery operation.
-LED_BRIGHTNESS_LEVELS = (0.0, 0.12, 0.25, 0.38, 0.50, 0.62, 0.75, 1.0)
+# Same number of levels preserves saved indices. First lit step is now 2%.
+LED_BRIGHTNESS_LEVELS = (0.0, 0.02, 0.05, 0.12, 0.25, 0.50, 0.75, 1.0)
 RESOLUTION_HOURS = (1, 6, 12, 24, 72, 168)
 
 # Checkpoints require CircuitPython ownership of the filesystem. If the computer owns it,

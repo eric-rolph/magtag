@@ -122,7 +122,7 @@ class BatteryEstimate:
             captions = {"usb": "USB", "external": "EXT", "unavailable": "BAT --",
                         "unknown": "PWR ?", "rising": "PWR ?", "checking": "AUTO",
                         "low": "LOW"}
-            reasons = {"usb": "External power", "external": "External power",
+            reasons = {"usb": "Charge unknown", "external": "Charge unknown",
                        "unavailable": "Reading unavailable", "unknown": "Source unknown",
                        "rising": "Voltage rising", "checking": "Checking power",
                        "low": "Battery voltage low"}

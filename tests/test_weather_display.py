@@ -28,7 +28,7 @@ def sensors(pm=12, temperature=68, pressure=1013, humidity=40):
 @pytest.mark.parametrize("text", [
     ("~100%", "Bat ~100% 4.20V | Left Learning"),
     ("~5%", "Bat ~5% 3.40V | Left <1h"),
-    ("USB", "USB 4.10V | External power"),
+    ("USB", "USB 4.10V | Charge unknown"),
     ("PWR ?", "PWR ? 4.10V | Voltage rising"),
     ("BAT --", "BAT -- --V | Reading unavailable"),
     ("~50%", "Bat ~50% 3.80V | Left ~12h"),
@@ -46,9 +46,9 @@ def test_battery_header_and_details_fit_without_collisions(view, text):
 
 
 def test_hidden_voltage_changes_do_not_trigger_home_panel_refresh(view):
-    view.update_battery(("USB", "USB 4.10V | External power"))
+    view.update_battery(("USB", "USB 4.10V | Charge unknown"))
     view.refresh_needed = False
-    view.update_battery(("USB", "USB 4.11V | External power"))
+    view.update_battery(("USB", "USB 4.11V | Charge unknown"))
     assert not view.refresh_needed
 
 

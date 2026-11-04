@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.2.2 — 2026-11-03
+
+- Lower the first lit LED setting from 12% to 2%, with an additional 5% step;
+  preserve saved brightness indices and the hardware power-off setting.
+- Explicitly show `Charge unknown` on Measurements with USB/external power.
+  Keep the upper-right source indicator; no unmeasured charging countdown.
+- Document the missing charge-status/current telemetry and the distinction
+  between NeoPixel brightness and the fixed board status LEDs.
+
 ## 4.2.1 — 2026-11-03
 
 - Remove manual battery confirmation. Infer battery operation from USB state,
